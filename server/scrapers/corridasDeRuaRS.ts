@@ -38,6 +38,48 @@ function cityFromUrl(url: string): string | null {
   return match ? (CITY_FROM_SLUG[match[1]] ?? null) : null
 }
 
+function prettifySlugCity(slug: string): string {
+  return slug
+    .split('-')
+    .map((part) => {
+      if (!part) return part
+      return part[0].toUpperCase() + part.slice(1)
+    })
+    .join(' ')
+}
+
+function cityFromElementLinks($: CheerioAPI, $el: any): string | null {
+  const hrefs = $el
+    .find('a[href*="/local/"]')
+    .map((_: any, a: any) => $(a).attr('href') || '')
+    .get()
+
+  for (const href of hrefs) {
+    const m = href.match(/\/local\/([^/]+)/)
+    if (!m) continue
+    const slug = m[1]
+    return CITY_FROM_SLUG[slug] ?? prettifySlugCity(slug)
+  }
+
+  return null
+}
+
+function normalizeCityFromText(raw: string): string {
+  const clean = raw.replace(/\s+/g, ' ').trim()
+  if (!clean) return ''
+
+  // Normalmente: "Cidade - RS", "Cidade, RS", "Cidade / RS"
+  const firstPart = clean.split(/[-–,/|]/)[0].trim()
+  if (!firstPart) return ''
+
+  // Evita textos genéricos que não são cidade
+  const lower = firstPart.toLowerCase()
+  if (lower.includes('rio grande do sul') || lower === 'rs') return ''
+  if (lower.includes('brasil')) return ''
+
+  return firstPart
+}
+
 function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
   const races: ScrapedRace[] = []
   const pageCity = cityFromUrl(sourceUrl)
@@ -67,9 +109,10 @@ function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
           .first().text().trim() ||
         ''
 
-      // Prefer URL-derived city (reliable), fallback to HTML
-      const cityFromHtml = location.split(/[-–,]/)[0].trim()
-      const city = pageCity || cityFromHtml || 'A confirmar'
+      // Prioriza cidade específica do item; URL da página é fallback.
+      const cityFromLink = cityFromElementLinks($, $el as any)
+      const cityFromHtml = normalizeCityFromText(location)
+      const city = cityFromHtml || cityFromLink || pageCity || 'A confirmar'
 
       const distText =
         $el.find('[class*="dist"], .distancias, .percurso').first().text().trim() ||
