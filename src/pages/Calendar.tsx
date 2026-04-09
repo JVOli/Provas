@@ -16,7 +16,6 @@ type ViewMode = 'timeline' | 'calendar' | 'grid' | 'list'
 export default function Calendar() {
   const [filters, setFilters] = useState<FilterState>(defaultFilters)
   const [view, setView] = useState<ViewMode>('timeline')
-  const [page, setPage] = useState(1)
   const navigate = useNavigate()
 
   const queryParams = useMemo(() => ({
@@ -28,13 +27,32 @@ export default function Calendar() {
     to: filters.to || undefined,
     search: filters.search || undefined,
     sort: 'date' as const,
-    page,
-    limit: 100,
-  }), [filters, page])
+    limit: 200,
+  }), [filters])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['races', queryParams],
-    queryFn: () => racesApi.list(queryParams).then((r) => r.data),
+    queryFn: async () => {
+      const first = (await racesApi.list({ ...queryParams, page: 1 })).data
+      const all = [...first.data]
+
+      if (first.pagination.pages > 1) {
+        for (let p = 2; p <= first.pagination.pages; p++) {
+          const next = (await racesApi.list({ ...queryParams, page: p })).data
+          all.push(...next.data)
+        }
+      }
+
+      return {
+        data: all,
+        pagination: {
+          ...first.pagination,
+          total: all.length,
+          page: 1,
+          pages: 1,
+        },
+      }
+    },
   })
 
   const races = data?.data ?? []
@@ -66,7 +84,7 @@ export default function Calendar() {
       </div>
 
       {/* Filters */}
-      <Filters filters={filters} onChange={(f) => { setFilters(f); setPage(1) }} />
+      <Filters filters={filters} onChange={(f) => { setFilters(f) }} />
 
       {/* Content */}
       {isLoading && (
