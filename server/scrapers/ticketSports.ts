@@ -2,6 +2,7 @@
  * Scraper: Ticket Sports (ticketsports.com.br/Calendario/)
  * Scrapes Triathlon, Trail Run, Corrida de Rua, Duathlon calendars.
  */
+import type { CheerioAPI } from 'cheerio'
 import { ScrapedRace } from './types'
 import { fetchHtml, parseBrazilianDate, inferRaceType, STATE_MAP, sleep } from './utils'
 
@@ -15,7 +16,7 @@ const MODALITY_PAGES = [
 ]
 
 function parseEvents(
-  $: cheerio.CheerioAPI,
+  $: CheerioAPI,
   sourceUrl: string,
   defaultType: string
 ): ScrapedRace[] {

@@ -2,13 +2,14 @@
  * Scraper: Audax Floripa (audaxfloripa.com.br)
  * Scrapes BRM 200/300/400/600km brevet events.
  */
+import type { CheerioAPI } from 'cheerio'
 import { ScrapedRace } from './types'
 import { fetchHtml, parseBrazilianDate, sleep } from './utils'
 
 const BASE = 'https://audaxfloripa.com.br'
 const PAGES = ['/brevets/temporada-2026/', '/brevets/', '/']
 
-function parseEvents($: cheerio.CheerioAPI, sourceUrl: string): ScrapedRace[] {
+function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
   const races: ScrapedRace[] = []
 
   // Audax sites often use tables or simple list structures

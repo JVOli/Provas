@@ -2,6 +2,7 @@
  * Scraper: Corridas de Rua RS (corridasderuars.com.br)
  * Scrapes the events listing page and per-city subpages.
  */
+import type { CheerioAPI } from 'cheerio'
 import { ScrapedRace } from './types'
 import { fetchHtml, parseBrazilianDate, inferRaceType, sleep } from './utils'
 
@@ -20,7 +21,7 @@ const CITY_PAGES = [
   '/local/lajeado/',
 ]
 
-function parseEvents($: cheerio.CheerioAPI, sourceUrl: string): ScrapedRace[] {
+function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
   const races: ScrapedRace[] = []
 
   // Common WordPress event patterns

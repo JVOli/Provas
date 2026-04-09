@@ -3,7 +3,10 @@
     "allow": [
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npx tsc:*)",
+      "Bash(./node_modules/.bin/tsc -p tsconfig.server.json --noEmit)",
+      "Bash(ls D:/Provas/node_modules/.bin/tsc*)"
     ]
   }
 }

@@ -5,6 +5,7 @@
  * NOTE: Selectors are based on common WordPress-style event listing patterns.
  * If the site changes structure, update the selectors in parseEventList().
  */
+import type { CheerioAPI } from 'cheerio'
 import { ScrapedRace } from './types'
 import { fetchHtml, parseBrazilianDate, inferRaceType, STATE_MAP, sleep } from './utils'
 
@@ -23,7 +24,7 @@ const MODALITY_PAGES = [
   'multiesportes', 'backyard', 'revezamento',
 ]
 
-function parseEvents($: cheerio.CheerioAPI, stateSlug: string): ScrapedRace[] {
+function parseEvents($: CheerioAPI, stateSlug: string): ScrapedRace[] {
   const races: ScrapedRace[] = []
   const stateUF = STATE_MAP[stateSlug] ?? stateSlug.toUpperCase().substring(0, 2)
 

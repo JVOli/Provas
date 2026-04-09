@@ -2,13 +2,14 @@
  * Scraper: Contra Relógio (contrarelogio.com.br/calendario/)
  * Scrapes the general race calendar with events from all Brazil.
  */
+import type { CheerioAPI } from 'cheerio'
 import { ScrapedRace } from './types'
 import { fetchHtml, parseBrazilianDate, inferRaceType, STATE_MAP, sleep } from './utils'
 
 const BASE = 'https://contrarelogio.com.br'
 const PAGES = ['/calendario/', '/calendario/?page=2', '/calendario/?page=3']
 
-function parseEvents($: cheerio.CheerioAPI, sourceUrl: string): ScrapedRace[] {
+function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
   const races: ScrapedRace[] = []
 
   // contrarelogio.com.br uses a table or list structure per event
