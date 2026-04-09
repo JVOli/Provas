@@ -21,8 +21,26 @@ const CITY_PAGES = [
   '/local/lajeado/',
 ]
 
+const CITY_FROM_SLUG: Record<string, string> = {
+  'porto-alegre': 'Porto Alegre',
+  'caxias-do-sul': 'Caxias do Sul',
+  'gramado': 'Gramado',
+  'novo-hamburgo': 'Novo Hamburgo',
+  'pelotas': 'Pelotas',
+  'santa-maria': 'Santa Maria',
+  'canoas': 'Canoas',
+  'sao-leopoldo': 'São Leopoldo',
+  'lajeado': 'Lajeado',
+}
+
+function cityFromUrl(url: string): string | null {
+  const match = url.match(/\/local\/([^/]+)/)
+  return match ? (CITY_FROM_SLUG[match[1]] ?? null) : null
+}
+
 function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
   const races: ScrapedRace[] = []
+  const pageCity = cityFromUrl(sourceUrl)
 
   // Common WordPress event patterns
   $('article, .event-item, .tribe_events_cat, .type-tribe_events').each((_, el) => {
@@ -45,12 +63,13 @@ function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
       if (!date) return
 
       const location =
-        $el.find('.tribe-venue-location, .tribe-venue, .local, .cidade').first().text().trim() ||
+        $el.find('.tribe-city, .tribe-venue-location, .tribe-venue, .tribe-address, .local, .cidade')
+          .first().text().trim() ||
         ''
 
-      // Try to extract city from location
-      const cityParts = location.split(/[-–,]/)[0].trim()
-      const city = cityParts || 'Porto Alegre'
+      // Prefer URL-derived city (reliable), fallback to HTML
+      const cityFromHtml = location.split(/[-–,]/)[0].trim()
+      const city = pageCity || cityFromHtml || 'A confirmar'
 
       const distText =
         $el.find('[class*="dist"], .distancias, .percurso').first().text().trim() ||
