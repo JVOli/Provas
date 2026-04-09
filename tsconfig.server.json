@@ -7,10 +7,10 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "server-dist",
-    "rootDir": ".",
+    "rootDir": "server",
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "declaration": false
   },
-  "include": ["server", "prisma/seed.ts"]
+  "include": ["server"]
 }
