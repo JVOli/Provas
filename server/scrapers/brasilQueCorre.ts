@@ -24,6 +24,27 @@ const MODALITY_PAGES = [
   'multiesportes', 'backyard', 'revezamento',
 ]
 
+function normalizeTextForDedup(value: string): string {
+  return (value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function normalizeWebsiteForDedup(url?: string): string {
+  if (!url) return ''
+  try {
+    const u = new URL(url)
+    const host = u.hostname.replace(/^www\./, '')
+    const path = u.pathname.replace(/\/+$/, '')
+    return `${host}${path}`.toLowerCase()
+  } catch {
+    return normalizeTextForDedup(url)
+  }
+}
+
 function parseEvents($: CheerioAPI, stateSlug: string): ScrapedRace[] {
   const races: ScrapedRace[] = []
   const stateUF = STATE_MAP[stateSlug] ?? stateSlug.toUpperCase().substring(0, 2)
@@ -146,7 +167,8 @@ export async function scrapeBrasilQueCorre(
   log: (msg: string) => void
 ): Promise<ScrapedRace[]> {
   const all: ScrapedRace[] = []
-  const seen = new Set<string>()
+  const seenByIdentity = new Set<string>()
+  const seenByWebsite = new Set<string>()
 
   const pages = [
     ...STATE_PAGES.map((s) => ({ slug: s, url: `${BASE}/${s}` })),
@@ -161,13 +183,20 @@ export async function scrapeBrasilQueCorre(
       let added = 0
 
       for (const r of races) {
-        const key = `${r.name}|${r.date.toISOString().substring(0, 10)}|${r.state}`
-        if (!seen.has(key)) {
-          seen.add(key)
-          r.sourceUrl = url
-          all.push(r)
-          added++
-        }
+        const dateKey = r.date.toISOString().substring(0, 10)
+        const nameKey = normalizeTextForDedup(r.name)
+        const cityKey = normalizeTextForDedup(r.city || '')
+        const identityKey = `${nameKey}|${dateKey}|${r.state}|${cityKey}`
+        const websiteKey = normalizeWebsiteForDedup(r.website)
+
+        if (seenByIdentity.has(identityKey)) continue
+        if (websiteKey && seenByWebsite.has(websiteKey)) continue
+
+        seenByIdentity.add(identityKey)
+        if (websiteKey) seenByWebsite.add(websiteKey)
+        r.sourceUrl = url
+        all.push(r)
+        added++
       }
 
       log(`  → ${races.length} found, ${added} unique from ${slug}`)
