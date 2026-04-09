@@ -80,6 +80,23 @@ function normalizeCityFromText(raw: string): string {
   return firstPart
 }
 
+function parseDateFromCard($el: any): Date | null {
+  const dd = $el.find('.tribe-events-event-date .dd').first().text().trim()
+  const mm = $el.find('.tribe-events-event-date .mm').first().text().trim()
+  const yy = $el.find('.tribe-events-event-date .yy').first().text().trim()
+  if (dd && mm && yy) {
+    const fromParts = parseBrazilianDate(`${dd} ${mm} ${yy}`)
+    if (fromParts) return fromParts
+  }
+
+  const dateRaw =
+    $el.find('.tribe-event-schedule-details, .tribe-events-schedule, time, .date, .data-evento')
+      .first().text().trim() ||
+    $el.find('[class*="date"], [class*="data"]').first().text().trim()
+
+  return parseBrazilianDate(dateRaw)
+}
+
 function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
   const races: ScrapedRace[] = []
   const pageCity = cityFromUrl(sourceUrl)
@@ -96,16 +113,11 @@ function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
 
       if (!name || name.length < 4) return
 
-      const dateRaw =
-        $el.find('.tribe-event-schedule-details, .tribe-events-schedule, time, .date, .data-evento')
-          .first().text().trim() ||
-        $el.find('[class*="date"], [class*="data"]').first().text().trim()
-
-      const date = parseBrazilianDate(dateRaw)
+      const date = parseDateFromCard($el)
       if (!date) return
 
       const location =
-        $el.find('.tribe-city, .tribe-venue-location, .tribe-venue, .tribe-address, .local, .cidade')
+        $el.find('.tribe-events-venue-details, .tribe-city, .tribe-venue-location, .tribe-venue, .tribe-address, .local, .cidade')
           .first().text().trim() ||
         ''
 
