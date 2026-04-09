@@ -2,6 +2,9 @@
   "name": "race-calendar",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "nodemon --watch server --ext ts,json --exec \"ts-node -P tsconfig.server.json server/index.ts\"",
