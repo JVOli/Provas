@@ -4,7 +4,7 @@
  */
 import type { CheerioAPI } from 'cheerio'
 import { ScrapedRace } from './types'
-import { fetchHtml, parseBrazilianDate, inferRaceType, sleep } from './utils'
+import { fetchHtmlWithOptions, parseBrazilianDate, inferRaceType, sleep } from './utils'
 
 const BASE = 'https://corridasderuars.com.br'
 
@@ -149,9 +149,18 @@ export async function scrapeCorridasDeRuaRS(
 
   for (const page of CITY_PAGES) {
     const url = `${BASE}${page}`
+    const fallbackHttpUrl = url.replace(/^https:\/\//, 'http://')
     try {
       log(`  Fetching ${url}`)
-      const $ = await fetchHtml(url)
+      let $: CheerioAPI
+      try {
+        // Este site está com certificado expirado em alguns períodos.
+        $ = await fetchHtmlWithOptions(url, { allowInsecureTLS: true })
+      } catch (err: any) {
+        if (!/certificate|ssl|tls/i.test(String(err?.message || ''))) throw err
+        log(`  ⚠ TLS inválido em HTTPS, tentando HTTP: ${fallbackHttpUrl}`)
+        $ = await fetchHtmlWithOptions(fallbackHttpUrl)
+      }
       const races = parseEvents($, url)
       let added = 0
 

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
+import https from 'https'
 
 const MONTH_MAP: Record<string, number> = {
   jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5,
@@ -91,6 +92,13 @@ export function inferRaceType(name: string, distances: string): string {
 }
 
 export async function fetchHtml(url: string): Promise<cheerio.CheerioAPI> {
+  return fetchHtmlWithOptions(url)
+}
+
+export async function fetchHtmlWithOptions(
+  url: string,
+  opts?: { allowInsecureTLS?: boolean }
+): Promise<cheerio.CheerioAPI> {
   const { data } = await axios.get(url, {
     headers: {
       'User-Agent':
@@ -98,6 +106,11 @@ export async function fetchHtml(url: string): Promise<cheerio.CheerioAPI> {
       'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
     },
     timeout: 15000,
+    ...(opts?.allowInsecureTLS
+      ? {
+          httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+        }
+      : {}),
   })
   return cheerio.load(data)
 }
