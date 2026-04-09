@@ -1,8 +1,15 @@
 import { Router, Request, Response } from 'express'
 import { Prisma, RaceType, RaceTier, RaceStatus } from '@prisma/client'
 import { prisma } from '../lib/prisma'
+import { parseDateInputStable } from '../scrapers/utils'
 
 export const racesRouter = Router()
+
+function monthRangeUtc(year: number, monthZeroBased: number): { start: Date; end: Date } {
+  const start = new Date(Date.UTC(year, monthZeroBased, 1, 0, 0, 0, 0))
+  const end = new Date(Date.UTC(year, monthZeroBased + 1, 0, 23, 59, 59, 999))
+  return { start, end }
+}
 
 // GET /api/races
 racesRouter.get('/', async (req: Request, res: Response) => {
@@ -47,13 +54,18 @@ racesRouter.get('/', async (req: Request, res: Response) => {
     if (month && year) {
       const y = parseInt(year)
       const m = parseInt(month) - 1
-      const start = new Date(y, m, 1)
-      const end = new Date(y, m + 1, 0, 23, 59, 59)
+      const { start, end } = monthRangeUtc(y, m)
       where.date = { gte: start, lte: end }
     } else if (from || to) {
       where.date = {}
-      if (from) (where.date as Prisma.DateTimeFilter).gte = new Date(from)
-      if (to) (where.date as Prisma.DateTimeFilter).lte = new Date(to)
+      if (from) {
+        const parsedFrom = parseDateInputStable(from)
+        if (parsedFrom) (where.date as Prisma.DateTimeFilter).gte = parsedFrom
+      }
+      if (to) {
+        const parsedTo = parseDateInputStable(to)
+        if (parsedTo) (where.date as Prisma.DateTimeFilter).lte = parsedTo
+      }
     }
 
     if (search) {
@@ -106,8 +118,8 @@ racesRouter.get('/:id', async (req: Request, res: Response) => {
 racesRouter.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body
-    if (data.date) data.date = new Date(data.date)
-    if (data.dateEnd) data.dateEnd = new Date(data.dateEnd)
+    if (data.date) data.date = parseDateInputStable(data.date) ?? new Date(data.date)
+    if (data.dateEnd) data.dateEnd = parseDateInputStable(data.dateEnd) ?? new Date(data.dateEnd)
     const race = await prisma.race.create({ data })
     res.status(201).json(race)
   } catch (err) {
@@ -120,8 +132,8 @@ racesRouter.post('/', async (req: Request, res: Response) => {
 racesRouter.put('/:id', async (req: Request, res: Response) => {
   try {
     const data = { ...req.body }
-    if (data.date) data.date = new Date(data.date)
-    if (data.dateEnd) data.dateEnd = new Date(data.dateEnd)
+    if (data.date) data.date = parseDateInputStable(data.date) ?? new Date(data.date)
+    if (data.dateEnd) data.dateEnd = parseDateInputStable(data.dateEnd) ?? new Date(data.dateEnd)
     delete data.id
     delete data.createdAt
     delete data.updatedAt

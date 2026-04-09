@@ -8,40 +8,56 @@ const MONTH_MAP: Record<string, number> = {
   julho: 6, agosto: 7, setembro: 8, outubro: 9, novembro: 10, dezembro: 11,
 }
 
+function makeDateOnlyUtc(year: number, monthZeroBased: number, day: number): Date {
+  // Meio-dia UTC evita deslocamento de dia na conversão de fusos.
+  return new Date(Date.UTC(year, monthZeroBased, day, 12, 0, 0, 0))
+}
+
+export function parseDateInputStable(raw: string): Date | null {
+  if (!raw) return null
+  const s = raw.trim()
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (m) {
+    return makeDateOnlyUtc(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]))
+  }
+  const d = new Date(s)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
 export function parseBrazilianDate(raw: string): Date | null {
   if (!raw) return null
   const s = raw.trim().toLowerCase()
 
   // dd/mm/yyyy
   const dmy = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
-  if (dmy) return new Date(parseInt(dmy[3]), parseInt(dmy[2]) - 1, parseInt(dmy[1]))
+  if (dmy) return makeDateOnlyUtc(parseInt(dmy[3]), parseInt(dmy[2]) - 1, parseInt(dmy[1]))
 
   // dd de mês de yyyy
   const longPt = s.match(/(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})/)
   if (longPt) {
     const mo = MONTH_MAP[longPt[2]]
-    if (mo !== undefined) return new Date(parseInt(longPt[3]), mo, parseInt(longPt[1]))
+    if (mo !== undefined) return makeDateOnlyUtc(parseInt(longPt[3]), mo, parseInt(longPt[1]))
   }
 
   // dd mês yyyy
   const shortPt = s.match(/(\d{1,2})\s+([a-zç]+)\s+(\d{4})/)
   if (shortPt) {
     const mo = MONTH_MAP[shortPt[2].toLowerCase().substring(0, 3)]
-    if (mo !== undefined) return new Date(parseInt(shortPt[3]), mo, parseInt(shortPt[1]))
+    if (mo !== undefined) return makeDateOnlyUtc(parseInt(shortPt[3]), mo, parseInt(shortPt[1]))
   }
 
   // yyyy-mm-dd (ISO)
   const iso = s.match(/(\d{4})-(\d{2})-(\d{2})/)
-  if (iso) return new Date(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]))
+  if (iso) return makeDateOnlyUtc(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]))
 
   // dd/mm (assume current/next year)
   const dm = s.match(/(\d{1,2})\/(\d{1,2})/)
   if (dm) {
     const now = new Date()
     let year = now.getFullYear()
-    const d = new Date(year, parseInt(dm[2]) - 1, parseInt(dm[1]))
+    const d = makeDateOnlyUtc(year, parseInt(dm[2]) - 1, parseInt(dm[1]))
     if (d < now) year++
-    return new Date(year, parseInt(dm[2]) - 1, parseInt(dm[1]))
+    return makeDateOnlyUtc(year, parseInt(dm[2]) - 1, parseInt(dm[1]))
   }
 
   return null
