@@ -28,25 +28,71 @@ function parseEvents($: CheerioAPI, stateSlug: string): ScrapedRace[] {
   const races: ScrapedRace[] = []
   const stateUF = STATE_MAP[stateSlug] ?? stateSlug.toUpperCase().substring(0, 2)
 
-  // BQC uses article elements or .event-item / .post type elements
-  // Try multiple selector patterns for robustness
-  const selectors = [
-    'article.type-post',
-    'article.type-evento',
-    '.event-item',
-    '.entry',
-    'article',
-  ]
+  // Novo layout do site: cada evento fica em ".cs-box" com um ".cs-text-widget .text-editor"
+  const newLayoutBoxes = $('.cs-box')
+  if (newLayoutBoxes.length > 0) {
+    newLayoutBoxes.each((_, el) => {
+      try {
+        const $box = $(el)
+        const $editor = $box.find('.cs-text-widget .text-editor').first()
+        if ($editor.length === 0) return
 
-  let itemSelector = 'article'
-  for (const sel of selectors) {
-    if ($(sel).length > 0) {
-      itemSelector = sel
-      break
-    }
+        const name =
+          $editor.find('h1 a, h2 a, h3 a, h4 a, h5 a').first().text().trim() ||
+          $editor.find('h1, h2, h3, h4, h5').first().text().trim()
+        if (!name || name.length < 4) return
+
+        const paragraphLines = $editor
+          .find('p')
+          .map((__, p) => $(p).text().replace(/\s+/g, ' ').trim())
+          .get()
+          .filter((line) => !!line && line !== '\u00a0')
+
+        const dateRaw = paragraphLines.find((line) =>
+          /\d{1,2}\s+de\s+[a-zçãéíóúâêôà]+\s+de\s+\d{4}/i.test(line) || /\d{1,2}\/\d{1,2}\/\d{4}/.test(line)
+        ) || ''
+        const date = parseBrazilianDate(dateRaw)
+        if (!date) return
+
+        const distText = paragraphLines.find((line) => /\d+\s*km/i.test(line)) || 'A confirmar'
+
+        const cityCandidate = paragraphLines.find((line) => {
+          const l = line.toLowerCase()
+          if (line === dateRaw || line === distText) return false
+          if (/\d+\s*km/i.test(line)) return false
+          if (l.includes('corrida') || l.includes('trail') || l.includes('ultra')) return false
+          if (line.length > 40) return false
+          return true
+        }) || ''
+
+        const city = cityCandidate || 'A confirmar'
+
+        const link =
+          $editor.find('a').first().attr('href') ||
+          $box.find('.cs-image-widget a').first().attr('href') ||
+          ''
+
+        races.push({
+          name,
+          date,
+          city,
+          state: stateUF,
+          distances: distText,
+          type: inferRaceType(name, distText),
+          website: link ? (link.startsWith('http') ? link : `${BASE}${link}`) : undefined,
+          sourceUrl: '',
+          source: 'brasilquecorre',
+        })
+      } catch {
+        // skip malformed item
+      }
+    })
+
+    if (races.length > 0) return races
   }
 
-  $(itemSelector).each((_, el) => {
+  // Fallback legado (estrutura antiga)
+  $('article.type-post, article.type-evento, .event-item, .entry, article').each((_, el) => {
     try {
       const $el = $(el)
 
