@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { LayoutList, LayoutGrid, AlignJustify, CalendarDays, Plus } from 'lucide-react'
+import { LayoutList, LayoutGrid, AlignJustify, CalendarDays, Plus, History } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { racesApi } from '@/lib/api'
 import { Race, cn, TIER_BADGE, TIER_LABELS, STATUS_BADGE, STATUS_LABELS, TYPE_LABELS, formatDate, getDayOfWeek, TIER_COLORS } from '@/lib/utils'
@@ -13,9 +13,20 @@ import { Badge } from '@/components/ui/badge'
 
 type ViewMode = 'timeline' | 'calendar' | 'grid' | 'list'
 
+/** YYYY-MM-DD no fuso de São Paulo (comparável com outras datas no mesmo formato). */
+function calendarDaySaoPaulo(isoDate: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(isoDate))
+}
+
 export default function Calendar() {
   const [filters, setFilters] = useState<FilterState>(defaultFilters)
   const [view, setView] = useState<ViewMode>('timeline')
+  const [includePastRaces, setIncludePastRaces] = useState(false)
   const navigate = useNavigate()
 
   const queryParams = useMemo(() => ({
@@ -56,7 +67,25 @@ export default function Calendar() {
   })
 
   const races = data?.data ?? []
-  const total = data?.pagination.total ?? 0
+  const totalFetched = data?.pagination.total ?? 0
+
+  const todaySp = useMemo(
+    () =>
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date()),
+    []
+  )
+
+  const filteredRaces = useMemo(() => {
+    if (includePastRaces) return races
+    return races.filter((r) => calendarDaySaoPaulo(r.date) >= todaySp)
+  }, [races, includePastRaces, todaySp])
+
+  const total = filteredRaces.length
 
   return (
     <div className="space-y-4">
@@ -65,10 +94,31 @@ export default function Calendar() {
         <div>
           <h1 className="text-xl font-bold">Calendário de Provas</h1>
           <p className="text-sm text-muted-foreground">
-            {isLoading ? 'Carregando...' : `${total} prova${total !== 1 ? 's' : ''}`}
+            {isLoading
+              ? 'Carregando...'
+              : includePastRaces
+                ? `${total} prova${total !== 1 ? 's' : ''}`
+                : totalFetched > total
+                  ? `${total} próxima${total !== 1 ? 's' : ''} (${totalFetched} no total)`
+                  : `${total} prova${total !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <Button
+            type="button"
+            variant={includePastRaces ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setIncludePastRaces((v) => !v)}
+            className="gap-1.5 text-xs shrink-0"
+            title={
+              includePastRaces
+                ? 'Mostrar apenas provas a partir de hoje'
+                : 'Incluir provas já realizadas (datas passadas)'
+            }
+          >
+            <History className="w-3.5 h-3.5" />
+            {includePastRaces ? 'Só próximas' : 'Incluir anteriores'}
+          </Button>
           {/* View toggle */}
           <div className="flex items-center gap-1 bg-muted/50 rounded p-1 border border-border">
             <ViewBtn icon={<LayoutList className="w-3.5 h-3.5" />} mode="timeline" active={view} set={setView} title="Timeline" />
@@ -103,10 +153,10 @@ export default function Calendar() {
 
       {!isLoading && !isError && (
         <>
-          {view === 'timeline' && <MonthTimeline races={races} />}
-          {view === 'calendar' && <MonthCalendarView races={races} />}
-          {view === 'grid' && <GridView races={races} />}
-          {view === 'list' && <ListView races={races} />}
+          {view === 'timeline' && <MonthTimeline races={filteredRaces} />}
+          {view === 'calendar' && <MonthCalendarView races={filteredRaces} />}
+          {view === 'grid' && <GridView races={filteredRaces} />}
+          {view === 'list' && <ListView races={filteredRaces} />}
         </>
       )}
     </div>

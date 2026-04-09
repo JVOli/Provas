@@ -92,100 +92,100 @@ jqueryParams.length&&$.each(jqueryParams,function(e,r){if("function"==typeof r){
 <link rel="https://api.w.org/" href="https://audaxfloripa.com.br/wp-json/" /><link rel="alternate" title="JSON" type="application/json" href="https://audaxfloripa.com.br/wp-json/wp/v2/pages/29813" /><link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://audaxfloripa.com.br/xmlrpc.php?rsd" />
 <meta name="generator" content="WordPress 6.9.4" />
 <link rel='shortlink' href='https://audaxfloripa.com.br/?p=29813' />
-<meta name="generator" content="Site Kit by Google 1.175.0" /><!-- Analytify: No tracking code - check profile selection or OAuth connection --><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" /><!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-8H34WV6H0Y"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-8H34WV6H0Y');
-</script>
-
-
-<script>
-(function($) {
-    $(document).ready(function() {
-        $(window).resize(function() {
-            $('.et_blog_grid_equal_height').each(function() {
-                equalise_articles($(this));
-            });
-        });
-
-        $('.et_blog_grid_equal_height').each(function() {
-            var blog = $(this);
-
-            equalise_articles($(this));
-
-            var observer = new MutationObserver(function(mutations) {
-                equalise_articles(blog);
-            });
-            
-            var config = {
-                subtree: true,
-                childList: true 
-            };
-
-            observer.observe(blog[0], config);
-        });
-
-        function equalise_articles(blog) {
-            var articles = blog.find('article');
-            var heights = [];
-            
-            articles.each(function() {
-                var height = 0;
-                height += ($(this).find('.et_pb_image_container, .et_main_video_container').length != 0) ? $(this).find('.et_pb_image_container, .et_main_video_container').outerHeight(true) : 0;
-                height += $(this).find('.entry-title').outerHeight(true);
-                height += ($(this).find('.post-meta').length != 0) ? $(this).find('.post-meta').outerHeight(true) : 0; 
-                height += ($(this).find('.post-content').length != 0) ? $(this).find('.post-content').outerHeight(true) : 0;    
-
-                heights.push(height);
-            });
-
-            var max_height = Math.max.apply(Math,heights); 
-
-            articles.each(function() {
-                $(this).height(max_height);
-            });
-        }
-
-        $(document).ajaxComplete(function() {
-            $('.et_blog_grid_equal_height').imagesLoaded().then(function() {
-                $('.et_blog_grid_equal_height').each(function(){
-                    equalise_articles($(this));
-                });
-            });
-        });
-
-        $.fn.imagesLoaded = function() {
-            var $imgs = this.find('img[src!=""]');
-            var dfds = [];
-
-            if (!$imgs.length) {
-                return $.Deferred().resolve().promise();
-            }            
-
-            $imgs.each(function(){
-                var dfd = $.Deferred();
-                dfds.push(dfd);
-                var img = new Image();
-
-                img.onload = function() {
-                    dfd.resolve();
-                };
-
-                img.onerror = function() {
-                    dfd.resolve(); 
-                };
-
-                img.src = this.src;
-            });
-
-            return $.when.apply($, dfds);
-        }
-    });
-})(jQuery);
+<meta name="generator" content="Site Kit by Google 1.175.0" /><!-- Analytify: No tracking code - check profile selection or OAuth connection --><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" /><!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-8H34WV6H0Y"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-8H34WV6H0Y');
+</script>
+
+
+<script>
+(function($) {
+    $(document).ready(function() {
+        $(window).resize(function() {
+            $('.et_blog_grid_equal_height').each(function() {
+                equalise_articles($(this));
+            });
+        });
+
+        $('.et_blog_grid_equal_height').each(function() {
+            var blog = $(this);
+
+            equalise_articles($(this));
+
+            var observer = new MutationObserver(function(mutations) {
+                equalise_articles(blog);
+            });
+            
+            var config = {
+                subtree: true,
+                childList: true 
+            };
+
+            observer.observe(blog[0], config);
+        });
+
+        function equalise_articles(blog) {
+            var articles = blog.find('article');
+            var heights = [];
+            
+            articles.each(function() {
+                var height = 0;
+                height += ($(this).find('.et_pb_image_container, .et_main_video_container').length != 0) ? $(this).find('.et_pb_image_container, .et_main_video_container').outerHeight(true) : 0;
+                height += $(this).find('.entry-title').outerHeight(true);
+                height += ($(this).find('.post-meta').length != 0) ? $(this).find('.post-meta').outerHeight(true) : 0; 
+                height += ($(this).find('.post-content').length != 0) ? $(this).find('.post-content').outerHeight(true) : 0;    
+
+                heights.push(height);
+            });
+
+            var max_height = Math.max.apply(Math,heights); 
+
+            articles.each(function() {
+                $(this).height(max_height);
+            });
+        }
+
+        $(document).ajaxComplete(function() {
+            $('.et_blog_grid_equal_height').imagesLoaded().then(function() {
+                $('.et_blog_grid_equal_height').each(function(){
+                    equalise_articles($(this));
+                });
+            });
+        });
+
+        $.fn.imagesLoaded = function() {
+            var $imgs = this.find('img[src!=""]');
+            var dfds = [];
+
+            if (!$imgs.length) {
+                return $.Deferred().resolve().promise();
+            }            
+
+            $imgs.each(function(){
+                var dfd = $.Deferred();
+                dfds.push(dfd);
+                var img = new Image();
+
+                img.onload = function() {
+                    dfd.resolve();
+                };
+
+                img.onerror = function() {
+                    dfd.resolve(); 
+                };
+
+                img.src = this.src;
+            });
+
+            return $.when.apply($, dfds);
+        }
+    });
+})(jQuery);
 </script><link rel="icon" href="https://audaxfloripa.com.br/wp-content/uploads/2022/05/cropped-fav-audax-floripa-randonnee-copiar-32x32.png" sizes="32x32" />
 <link rel="icon" href="https://audaxfloripa.com.br/wp-content/uploads/2022/05/cropped-fav-audax-floripa-randonnee-copiar-192x192.png" sizes="192x192" />
 <link rel="apple-touch-icon" href="https://audaxfloripa.com.br/wp-content/uploads/2022/05/cropped-fav-audax-floripa-randonnee-copiar-180x180.png" />
@@ -200,9 +200,9 @@ jqueryParams.length&&$.each(jqueryParams,function(e,r){if("function"==typeof r){
 
 </head>
 <body data-rsssl=1 class="wp-singular page-template-default page page-id-29813 page-child parent-pageid-43 wp-theme-Divi et-tb-has-template et-tb-has-header et-tb-has-footer et_pb_button_helper_class et_cover_background et_pb_gutter et_pb_gutters3 et_pb_pagebuilder_layout et_smooth_scroll et_no_sidebar et_divi_theme et-db">
-	<!-- Google Tag Manager MCCM (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M6H9VLMR"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+	<!-- Google Tag Manager MCCM (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M6H9VLMR"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager MCCM (noscript) -->
 <div id="page-container">
 <div id="et-boc" class="et-boc">
