@@ -1,16 +1,17 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { LayoutList, LayoutGrid, AlignJustify, Plus } from 'lucide-react'
+import { LayoutList, LayoutGrid, AlignJustify, CalendarDays, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { racesApi } from '@/lib/api'
 import { Race, cn, TIER_BADGE, TIER_LABELS, STATUS_BADGE, STATUS_LABELS, TYPE_LABELS, formatDate, getDayOfWeek, TIER_COLORS } from '@/lib/utils'
 import { Filters, FilterState, defaultFilters } from '@/components/Filters'
 import { MonthTimeline } from '@/components/MonthTimeline'
 import { RaceCard } from '@/components/RaceCard'
+import { MonthCalendarView } from '@/components/MonthCalendarView'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
-type ViewMode = 'timeline' | 'grid' | 'list'
+type ViewMode = 'timeline' | 'calendar' | 'grid' | 'list'
 
 export default function Calendar() {
   const [filters, setFilters] = useState<FilterState>(defaultFilters)
@@ -53,6 +54,7 @@ export default function Calendar() {
           {/* View toggle */}
           <div className="flex items-center gap-1 bg-muted/50 rounded p-1 border border-border">
             <ViewBtn icon={<LayoutList className="w-3.5 h-3.5" />} mode="timeline" active={view} set={setView} title="Timeline" />
+            <ViewBtn icon={<CalendarDays className="w-3.5 h-3.5" />} mode="calendar" active={view} set={setView} title="Calendário" />
             <ViewBtn icon={<LayoutGrid className="w-3.5 h-3.5" />} mode="grid" active={view} set={setView} title="Grade" />
             <ViewBtn icon={<AlignJustify className="w-3.5 h-3.5" />} mode="list" active={view} set={setView} title="Lista" />
           </div>
@@ -84,6 +86,7 @@ export default function Calendar() {
       {!isLoading && !isError && (
         <>
           {view === 'timeline' && <MonthTimeline races={races} />}
+          {view === 'calendar' && <MonthCalendarView races={races} />}
           {view === 'grid' && <GridView races={races} />}
           {view === 'list' && <ListView races={races} />}
         </>

@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Play, RefreshCw, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
-import { scraperApi } from '@/lib/api'
+import { racesApi, scraperApi } from '@/lib/api'
 import { Button } from './ui/button'
-import { cn } from '@/lib/utils'
+import { cn, Race } from '@/lib/utils'
+import { Input } from './ui/input'
 
 export function ScraperPanel() {
   const qc = useQueryClient()
@@ -20,6 +21,17 @@ export function ScraperPanel() {
     queryKey: ['scraper-status'],
     queryFn: () => scraperApi.status().then((r) => r.data),
     refetchInterval: polling ? 2000 : false,
+  })
+
+  const { data: scrapedRaces } = useQuery({
+    queryKey: ['scraped-races-editable'],
+    queryFn: () =>
+      racesApi.list({
+        tier: 'SUGGESTION',
+        sort: 'date',
+        page: 1,
+        limit: 30,
+      }).then((r) => r.data.data.filter((race) => race.source && race.source !== 'manual')),
   })
 
   // Auto-scroll log
@@ -174,6 +186,8 @@ export function ScraperPanel() {
           </div>
         </div>
       )}
+
+      <EditableScrapedRaces races={scrapedRaces ?? []} />
     </div>
   )
 }
@@ -194,6 +208,95 @@ function StatCard({
       <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-0.5">
         {icon}
         {label}
+      </div>
+    </div>
+  )
+}
+
+function EditableScrapedRaces({ races }: { races: Race[] }) {
+  const qc = useQueryClient()
+  const [drafts, setDrafts] = useState<Record<string, { myDistance: string; elevation: string }>>({})
+
+  const saveMutation = useMutation({
+    mutationFn: ({ id, myDistance, elevation }: { id: string; myDistance: string; elevation: string }) =>
+      racesApi.update(id, {
+        myDistance,
+        elevation,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['races'] })
+      qc.invalidateQueries({ queryKey: ['scraped-races-editable'] })
+      toast.success('Distância/altimetria atualizadas')
+    },
+    onError: () => toast.error('Erro ao atualizar prova'),
+  })
+
+  if (races.length === 0) return null
+
+  const getDraft = (race: Race) =>
+    drafts[race.id] ?? { myDistance: race.myDistance ?? '', elevation: race.elevation ?? '' }
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <h3 className="text-sm font-semibold">Ajustes rápidos das provas do scraping</h3>
+        <p className="text-xs text-muted-foreground">
+          Edite sua distância e altimetria sem abrir cada prova individualmente.
+        </p>
+      </div>
+
+      <div className="border border-border rounded-lg divide-y divide-border">
+        {races.map((race) => {
+          const draft = getDraft(race)
+          return (
+            <div key={race.id} className="p-3 grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+              <div className="md:col-span-5 min-w-0">
+                <p className="text-sm font-medium truncate">{race.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(race.date).toLocaleDateString('pt-BR')} • {race.city}/{race.state} • {race.source}
+                </p>
+              </div>
+              <div className="md:col-span-3">
+                <label className="text-xs text-muted-foreground">Minha distância</label>
+                <Input
+                  value={draft.myDistance}
+                  onChange={(e) =>
+                    setDrafts((prev) => ({
+                      ...prev,
+                      [race.id]: { ...draft, myDistance: e.target.value },
+                    }))
+                  }
+                  placeholder="Ex: Sprint, 21km..."
+                  className="h-8"
+                />
+              </div>
+              <div className="md:col-span-3">
+                <label className="text-xs text-muted-foreground">Altimetria</label>
+                <Input
+                  value={draft.elevation}
+                  onChange={(e) =>
+                    setDrafts((prev) => ({
+                      ...prev,
+                      [race.id]: { ...draft, elevation: e.target.value },
+                    }))
+                  }
+                  placeholder="Ex: 600m D+"
+                  className="h-8"
+                />
+              </div>
+              <div className="md:col-span-1">
+                <Button
+                  size="sm"
+                  className="w-full"
+                  disabled={saveMutation.isPending}
+                  onClick={() => saveMutation.mutate({ id: race.id, ...draft })}
+                >
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
