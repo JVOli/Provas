@@ -1,82 +1,102 @@
 /**
  * Scraper: Corridas de Rua RS (corridasderuars.com.br)
- * Scrapes the events listing page and per-city subpages.
+ * Primary: REST API do The Events Calendar (/wp-json/tribe/events/v1/events)
+ * Fallback: HTML scraping de /eventos/
  */
+import axios from 'axios'
+import https from 'https'
 import type { CheerioAPI } from 'cheerio'
 import { ScrapedRace } from './types'
-import { fetchHtmlWithOptions, parseBrazilianDate, inferRaceType, sleep } from './utils'
+import { fetchHtmlWithOptions, parseBrazilianDate, inferRaceType } from './utils'
 
 const BASE = 'https://corridasderuars.com.br'
 
-const CITY_PAGES = [
-  '/eventos/',
-  '/local/porto-alegre/',
-  '/local/caxias-do-sul/',
-  '/local/gramado/',
-  '/local/novo-hamburgo/',
-  '/local/pelotas/',
-  '/local/santa-maria/',
-  '/local/canoas/',
-  '/local/sao-leopoldo/',
-  '/local/lajeado/',
-]
-
-const CITY_FROM_SLUG: Record<string, string> = {
-  'porto-alegre': 'Porto Alegre',
-  'caxias-do-sul': 'Caxias do Sul',
-  'gramado': 'Gramado',
-  'novo-hamburgo': 'Novo Hamburgo',
-  'pelotas': 'Pelotas',
-  'santa-maria': 'Santa Maria',
-  'canoas': 'Canoas',
-  'sao-leopoldo': 'São Leopoldo',
-  'lajeado': 'Lajeado',
+const AXIOS_OPTS = {
+  headers: {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
+    'Accept': 'application/json, text/html, */*',
+    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+    'Referer': BASE + '/',
+  },
+  timeout: 30000,
+  httpsAgent: new https.Agent({ rejectUnauthorized: false }),
 }
 
-function cityFromUrl(url: string): string | null {
-  const match = url.match(/\/local\/([^/]+)/)
-  return match ? (CITY_FROM_SLUG[match[1]] ?? null) : null
+// ─── REST API ───────────────────────────────────────────────────────────────
+
+interface TribeEvent {
+  id: number
+  title: string
+  start_date: string        // "2026-04-11 06:00:00"
+  end_date?: string
+  url: string
+  venue?: { city?: string; stateprovince?: string }
+  categories?: Array<{ name: string }>
 }
 
-function prettifySlugCity(slug: string): string {
-  return slug
-    .split('-')
-    .map((part) => {
-      if (!part) return part
-      return part[0].toUpperCase() + part.slice(1)
-    })
-    .join(' ')
+interface TribeResponse {
+  events: TribeEvent[]
+  total: number
+  total_pages: number
 }
 
-function cityFromElementLinks($: CheerioAPI, $el: any): string | null {
-  const hrefs = $el
-    .find('a[href*="/local/"]')
-    .map((_: any, a: any) => $(a).attr('href') || '')
-    .get()
+async function scrapeViaApi(log: (msg: string) => void): Promise<ScrapedRace[]> {
+  const races: ScrapedRace[] = []
+  let page = 1
 
-  for (const href of hrefs) {
-    const m = href.match(/\/local\/([^/]+)/)
-    if (!m) continue
-    const slug = m[1]
-    return CITY_FROM_SLUG[slug] ?? prettifySlugCity(slug)
+  while (true) {
+    const url = `${BASE}/wp-json/tribe/events/v1/events?per_page=100&page=${page}&status=publish`
+    log(`  [API] page ${page}: ${url}`)
+    const { data } = await axios.get<TribeResponse>(url, AXIOS_OPTS)
+
+    if (!data?.events?.length) break
+
+    for (const ev of data.events) {
+      const name = ev.title?.replace(/&#(\d+);/g, (_, c) => String.fromCharCode(c)).trim()
+      if (!name || name.length < 4) continue
+
+      const dateRaw = ev.start_date?.substring(0, 10) // "2026-04-11"
+      if (!dateRaw) continue
+      const [y, m, d] = dateRaw.split('-').map(Number)
+      const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0))
+
+      const city = ev.venue?.city?.trim() || 'A confirmar'
+      const state = ev.venue?.stateprovince?.trim() || 'RS'
+
+      const distCategories = (ev.categories ?? [])
+        .map((c) => c.name)
+        .filter((n) => /\d+\s*km/i.test(n))
+        .join(', ')
+
+      races.push({
+        name,
+        date,
+        city,
+        state,
+        distances: distCategories || 'A confirmar',
+        type: inferRaceType(name, distCategories),
+        website: ev.url || undefined,
+        sourceUrl: `${BASE}/eventos/`,
+        source: 'corridasderuars',
+      })
+    }
+
+    if (page >= data.total_pages) break
+    page++
   }
 
-  return null
+  return races
 }
+
+// ─── HTML fallback ───────────────────────────────────────────────────────────
 
 function normalizeCityFromText(raw: string): string {
   const clean = raw.replace(/\s+/g, ' ').trim()
-  if (!clean) return ''
-
-  // Normalmente: "Cidade - RS", "Cidade, RS", "Cidade / RS"
   const firstPart = clean.split(/[-–,/|]/)[0].trim()
-  if (!firstPart) return ''
-
-  // Evita textos genéricos que não são cidade
   const lower = firstPart.toLowerCase()
-  if (lower.includes('rio grande do sul') || lower === 'rs') return ''
-  if (lower.includes('brasil')) return ''
-
+  if (!lower || lower.includes('rio grande do sul') || lower === 'rs' || lower.includes('brasil'))
+    return ''
   return firstPart
 }
 
@@ -85,27 +105,22 @@ function parseDateFromCard($el: any): Date | null {
   const mm = $el.find('.tribe-events-event-date .mm').first().text().trim()
   const yy = $el.find('.tribe-events-event-date .yy').first().text().trim()
   if (dd && mm && yy) {
-    const fromParts = parseBrazilianDate(`${dd} ${mm} ${yy}`)
-    if (fromParts) return fromParts
+    const d = parseBrazilianDate(`${dd} ${mm} ${yy}`)
+    if (d) return d
   }
-
   const dateRaw =
     $el.find('.tribe-event-schedule-details, .tribe-events-schedule, time, .date, .data-evento')
       .first().text().trim() ||
     $el.find('[class*="date"], [class*="data"]').first().text().trim()
-
   return parseBrazilianDate(dateRaw)
 }
 
-function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
+function parseHtmlEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
   const races: ScrapedRace[] = []
-  const pageCity = cityFromUrl(sourceUrl)
 
-  // Common WordPress event patterns
   $('article, .event-item, .tribe_events_cat, .type-tribe_events').each((_, el) => {
     try {
       const $el = $(el)
-
       const name =
         $el.find('.tribe-event-url, h2 a, h3 a, .tribe-events-list-event-title a, .entry-title a')
           .first().text().trim() ||
@@ -118,13 +133,9 @@ function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
 
       const location =
         $el.find('.tribe-events-venue-details, .tribe-city, .tribe-venue-location, .tribe-venue, .tribe-address, .local, .cidade')
-          .first().text().trim() ||
-        ''
+          .first().text().trim() || ''
 
-      // Prioriza cidade específica do item; URL da página é fallback.
-      const cityFromLink = cityFromElementLinks($, $el as any)
-      const cityFromHtml = normalizeCityFromText(location)
-      const city = cityFromHtml || cityFromLink || pageCity || 'A confirmar'
+      const city = normalizeCityFromText(location) || 'A confirmar'
 
       const distText =
         $el.find('[class*="dist"], .distancias, .percurso').first().text().trim() ||
@@ -153,44 +164,32 @@ function parseEvents($: CheerioAPI, sourceUrl: string): ScrapedRace[] {
   return races
 }
 
+async function scrapeViaHtml(log: (msg: string) => void): Promise<ScrapedRace[]> {
+  const url = `${BASE}/eventos/`
+  log(`  [HTML] ${url}`)
+  const $ = await fetchHtmlWithOptions(url, { allowInsecureTLS: true })
+  return parseHtmlEvents($, url)
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
 export async function scrapeCorridasDeRuaRS(
   log: (msg: string) => void
 ): Promise<ScrapedRace[]> {
-  const all: ScrapedRace[] = []
-  const seen = new Set<string>()
-
-  for (const page of CITY_PAGES) {
-    const url = `${BASE}${page}`
-    const fallbackHttpUrl = url.replace(/^https:\/\//, 'http://')
-    try {
-      log(`  Fetching ${url}`)
-      let $: CheerioAPI
-      try {
-        // Este site está com certificado expirado em alguns períodos.
-        $ = await fetchHtmlWithOptions(url, { allowInsecureTLS: true })
-      } catch (err: any) {
-        if (!/certificate|ssl|tls/i.test(String(err?.message || ''))) throw err
-        log(`  ⚠ TLS inválido em HTTPS, tentando HTTP: ${fallbackHttpUrl}`)
-        $ = await fetchHtmlWithOptions(fallbackHttpUrl)
-      }
-      const races = parseEvents($, url)
-      let added = 0
-
-      for (const r of races) {
-        const key = `${r.name}|${r.date.toISOString().substring(0, 10)}`
-        if (!seen.has(key)) {
-          seen.add(key)
-          all.push(r)
-          added++
-        }
-      }
-
-      log(`  → ${races.length} found, ${added} unique from ${page}`)
-    } catch (err: any) {
-      log(`  ⚠ Error scraping ${url}: ${err.message}`)
-    }
-    await sleep(1500)
+  try {
+    const races = await scrapeViaApi(log)
+    log(`  → ${races.length} races via REST API`)
+    return races
+  } catch (err: any) {
+    log(`  ⚠ REST API falhou (${err.message}), tentando HTML...`)
   }
 
-  return all
+  try {
+    const races = await scrapeViaHtml(log)
+    log(`  → ${races.length} races via HTML`)
+    return races
+  } catch (err: any) {
+    log(`  ⚠ HTML também falhou: ${err.message}`)
+    return []
+  }
 }
