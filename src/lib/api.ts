@@ -18,6 +18,8 @@ export interface RaceFilters {
   type?: string
   tier?: string
   status?: string
+  source?: string
+  country?: string
   month?: number
   year?: number
   from?: string
@@ -35,6 +37,8 @@ export const racesApi = {
     if (filters.type) params.type = filters.type
     if (filters.tier) params.tier = filters.tier
     if (filters.status) params.status = filters.status
+    if (filters.source) params.source = filters.source
+    if (filters.country) params.country = filters.country
     if (filters.month) params.month = filters.month
     if (filters.year) params.year = filters.year
     if (filters.from) params.from = filters.from
@@ -45,6 +49,8 @@ export const racesApi = {
     if (filters.limit) params.limit = filters.limit
     return api.get<RacesResponse>('/races', { params })
   },
+
+  facets: () => api.get<{ sources: string[]; countries: string[] }>('/races/facets'),
 
   get: (id: string) => api.get<Race>(`/races/${id}`),
 

@@ -9,6 +9,8 @@ export interface FilterState {
   types: string[]
   tiers: string[]
   statuses: string[]
+  sources: string[]
+  countries: string[]
   search: string
   from: string
   to: string
@@ -19,6 +21,8 @@ export const defaultFilters: FilterState = {
   types: [],
   tiers: [],
   statuses: [],
+  sources: [],
+  countries: [],
   search: '',
   from: '',
   to: '',
@@ -27,9 +31,11 @@ export const defaultFilters: FilterState = {
 interface FiltersProps {
   filters: FilterState
   onChange: (f: FilterState) => void
+  availableSources?: string[]
+  availableCountries?: string[]
 }
 
-export function Filters({ filters, onChange }: FiltersProps) {
+export function Filters({ filters, onChange, availableSources = [], availableCountries = [] }: FiltersProps) {
   const [expanded, setExpanded] = useState(false)
 
   const toggle = (key: keyof FilterState, value: string) => {
@@ -45,6 +51,8 @@ export function Filters({ filters, onChange }: FiltersProps) {
     filters.types.length > 0 ||
     filters.tiers.length > 0 ||
     filters.statuses.length > 0 ||
+    filters.sources.length > 0 ||
+    filters.countries.length > 0 ||
     filters.search ||
     filters.from ||
     filters.to
@@ -54,6 +62,8 @@ export function Filters({ filters, onChange }: FiltersProps) {
     filters.types.length +
     filters.tiers.length +
     filters.statuses.length +
+    filters.sources.length +
+    filters.countries.length +
     (filters.search ? 1 : 0) +
     (filters.from || filters.to ? 1 : 0)
 
@@ -108,7 +118,7 @@ export function Filters({ filters, onChange }: FiltersProps) {
 
       {/* Expanded filter panel */}
       {expanded && (
-        <div className="border-t border-border px-3 py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="border-t border-border px-3 py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* States */}
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Estado</p>
@@ -162,6 +172,40 @@ export function Filters({ filters, onChange }: FiltersProps) {
               ))}
             </div>
           </div>
+
+          {/* Source */}
+          {availableSources.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Fonte</p>
+              <div className="flex flex-wrap gap-1">
+                {availableSources.map((s) => (
+                  <FilterChip
+                    key={s}
+                    label={s}
+                    active={filters.sources.includes(s)}
+                    onClick={() => toggle('sources', s)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Country */}
+          {availableCountries.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">País</p>
+              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                {availableCountries.map((c) => (
+                  <FilterChip
+                    key={c}
+                    label={c}
+                    active={filters.countries.includes(c)}
+                    onClick={() => toggle('countries', c)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Status + Date range */}
           <div className="space-y-3">

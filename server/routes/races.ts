@@ -19,6 +19,8 @@ racesRouter.get('/', async (req: Request, res: Response) => {
       type,
       tier,
       status,
+      source,
+      country,
       month,
       year,
       from,
@@ -49,6 +51,16 @@ racesRouter.get('/', async (req: Request, res: Response) => {
     if (status) {
       const statuses = status.split(',').map((s) => s.trim()) as RaceStatus[]
       where.status = { in: statuses }
+    }
+
+    if (source) {
+      const sources = source.split(',').map((s) => s.trim())
+      where.source = { in: sources }
+    }
+
+    if (country) {
+      const countries = country.split(',').map((c) => c.trim())
+      where.country = { in: countries }
     }
 
     if (month && year) {
@@ -99,6 +111,22 @@ racesRouter.get('/', async (req: Request, res: Response) => {
     })
   } catch (err) {
     console.error(err)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// GET /api/races/facets — distinct sources and countries
+racesRouter.get('/facets', async (_req: Request, res: Response) => {
+  try {
+    const [sources, countries] = await Promise.all([
+      prisma.race.findMany({ select: { source: true }, distinct: ['source'], where: { source: { not: null } } }),
+      prisma.race.findMany({ select: { country: true }, distinct: ['country'], orderBy: { country: 'asc' } }),
+    ])
+    res.json({
+      sources: sources.map(s => s.source).filter(Boolean).sort(),
+      countries: countries.map(c => c.country).filter(Boolean).sort(),
+    })
+  } catch (err) {
     res.status(500).json({ error: 'Internal server error' })
   }
 })

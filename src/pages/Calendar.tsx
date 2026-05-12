@@ -29,11 +29,19 @@ export default function Calendar() {
   const [includePastRaces, setIncludePastRaces] = useState(false)
   const navigate = useNavigate()
 
+  const { data: facets } = useQuery({
+    queryKey: ['facets'],
+    queryFn: async () => (await racesApi.facets()).data,
+    staleTime: 5 * 60 * 1000,
+  })
+
   const queryParams = useMemo(() => ({
     state: filters.states.join(',') || undefined,
     type: filters.types.join(',') || undefined,
     tier: filters.tiers.join(',') || undefined,
     status: filters.statuses.join(',') || undefined,
+    source: filters.sources.join(',') || undefined,
+    country: filters.countries.join(',') || undefined,
     from: filters.from || undefined,
     to: filters.to || undefined,
     search: filters.search || undefined,
@@ -134,7 +142,12 @@ export default function Calendar() {
       </div>
 
       {/* Filters */}
-      <Filters filters={filters} onChange={(f) => { setFilters(f) }} />
+      <Filters
+        filters={filters}
+        onChange={(f) => { setFilters(f) }}
+        availableSources={facets?.sources}
+        availableCountries={facets?.countries}
+      />
 
       {/* Content */}
       {isLoading && (
