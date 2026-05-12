@@ -6,6 +6,7 @@ import { scrapeContraRelogio } from './contraRelogio'
 import { scrapeTicketSports } from './ticketSports'
 import { scrapeMundoTri } from './mundoTri'
 import { scrapeRandors } from './randors'
+import { scrapeIronman } from './ironman'
 
 export type ScraperKey =
   | 'brasilquecorre'
@@ -15,6 +16,7 @@ export type ScraperKey =
   | 'ticketsports'
   | 'mundotri'
   | 'randors'
+  | 'ironman'
 
 export const SCRAPERS: Record<
   ScraperKey,
@@ -27,6 +29,7 @@ export const SCRAPERS: Record<
   ticketsports: { name: 'Ticket Sports', fn: scrapeTicketSports },
   mundotri: { name: 'Mundo Tri', fn: scrapeMundoTri },
   randors: { name: 'Rando RS (Brevets)', fn: scrapeRandors },
+  ironman: { name: 'Ironman', fn: scrapeIronman },
 }
 
 export { ScrapedRace }
