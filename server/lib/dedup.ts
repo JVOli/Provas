@@ -27,11 +27,9 @@ function levenshtein(a: string, b: string): number {
 }
 
 export function isDuplicate(
-  a: { name: string; date: Date; state: string },
-  b: { name: string; date: Date; state: string }
+  a: { name: string; date: Date; state: string; source?: string | null },
+  b: { name: string; date: Date; state: string; source?: string | null }
 ): boolean {
-  if (a.state !== b.state) return false
-
   const diffMs = Math.abs(a.date.getTime() - b.date.getTime())
   const diffDays = diffMs / (1000 * 60 * 60 * 24)
   if (diffDays > 1) return false
@@ -39,6 +37,14 @@ export function isDuplicate(
   const normA = normalizeRaceName(a.name)
   const normB = normalizeRaceName(b.name)
 
+  // Same source: match by name only (state may vary between runs)
+  if (a.source && b.source && a.source === b.source) {
+    if (normA === normB) return true
+    if (levenshtein(normA, normB) < 4) return true
+  }
+
+  // Cross-source: require state match too
+  if (a.state !== b.state) return false
   if (normA === normB) return true
   if (levenshtein(normA, normB) < 4) return true
 

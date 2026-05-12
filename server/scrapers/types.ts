@@ -4,6 +4,7 @@ export interface ScrapedRace {
   dateEnd?: Date
   city: string
   state: string
+  country?: string
   distances: string
   type: string
   terrain?: string

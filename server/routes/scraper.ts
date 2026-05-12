@@ -30,19 +30,19 @@ const status: ScraperStatus = {
 async function importRaces(races: ScrapedRace[], log: (m: string) => void) {
   let inserted = 0, updated = 0, skipped = 0
 
-  // Load recent races from DB for dedup
+  // Load past + future races from DB for dedup
   const dbRaces = await prisma.race.findMany({
-    select: { id: true, name: true, date: true, state: true, sourceUrl: true },
-    where: { date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
-    take: 2000,
+    select: { id: true, name: true, date: true, state: true, source: true, sourceUrl: true },
+    where: { date: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } },
+    take: 5000,
   })
 
   for (const race of races) {
     try {
       const dup = dbRaces.find((db) =>
         isDuplicate(
-          { name: db.name, date: db.date, state: db.state },
-          { name: race.name, date: race.date, state: race.state }
+          { name: db.name, date: db.date, state: db.state, source: db.source },
+          { name: race.name, date: race.date, state: race.state, source: race.source }
         )
       )
 
@@ -68,6 +68,7 @@ async function importRaces(races: ScrapedRace[], log: (m: string) => void) {
           dateEnd: race.dateEnd,
           city: race.city,
           state: race.state,
+          country: race.country,
           distances: race.distances,
           type: (race.type as RaceType) || RaceType.CORRIDA,
           terrain: race.terrain,
