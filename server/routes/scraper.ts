@@ -82,7 +82,7 @@ async function importRaces(races: ScrapedRace[], log: (m: string) => void) {
         },
       })
 
-      dbRaces.push({ id: created.id, name: created.name, date: created.date, state: created.state, sourceUrl: created.sourceUrl })
+      dbRaces.push({ id: created.id, name: created.name, date: created.date, state: created.state, source: created.source, sourceUrl: created.sourceUrl })
       inserted++
       log(`  ✅ Inserted: ${race.name} (${race.city}/${race.state} - ${race.date.toLocaleDateString('pt-BR')})`)
     } catch (err: any) {
