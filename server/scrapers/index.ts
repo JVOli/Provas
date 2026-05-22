@@ -1,6 +1,6 @@
 import { ScrapedRace } from './types'
 import { scrapeBrasilQueCorre } from './brasilQueCorre'
-import { scrapeCorridasDeRuaRS } from './corridasderuars'
+import { scrapeCorridasDeRuaRS } from './corridasDeRuaRS'
 import { scrapeAudaxFloripa } from './audaxFloripa'
 import { scrapeContraRelogio } from './contraRelogio'
 import { scrapeTicketSports } from './ticketSports'
