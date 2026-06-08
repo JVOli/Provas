@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { LayoutList, LayoutGrid, AlignJustify, CalendarDays, Plus, History } from 'lucide-react'
+import { LayoutList, LayoutGrid, AlignJustify, CalendarDays, CalendarRange, Plus, History } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { racesApi } from '@/lib/api'
 import { Race, cn, TIER_BADGE, TIER_LABELS, STATUS_BADGE, STATUS_LABELS, TYPE_LABELS, formatDate, getDayOfWeek, TIER_COLORS } from '@/lib/utils'
@@ -8,10 +8,11 @@ import { Filters, FilterState, defaultFilters } from '@/components/Filters'
 import { MonthTimeline } from '@/components/MonthTimeline'
 import { RaceCard } from '@/components/RaceCard'
 import { MonthCalendarView } from '@/components/MonthCalendarView'
+import { YearCalendarView } from '@/components/YearCalendarView'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
-type ViewMode = 'timeline' | 'calendar' | 'grid' | 'list'
+type ViewMode = 'timeline' | 'calendar' | 'year' | 'grid' | 'list'
 
 /** YYYY-MM-DD no fuso de São Paulo (comparável com outras datas no mesmo formato). */
 function calendarDaySaoPaulo(isoDate: string): string {
@@ -130,7 +131,8 @@ export default function Calendar() {
           {/* View toggle */}
           <div className="flex items-center gap-1 bg-muted/50 rounded p-1 border border-border">
             <ViewBtn icon={<LayoutList className="w-3.5 h-3.5" />} mode="timeline" active={view} set={setView} title="Timeline" />
-            <ViewBtn icon={<CalendarDays className="w-3.5 h-3.5" />} mode="calendar" active={view} set={setView} title="Calendário" />
+            <ViewBtn icon={<CalendarDays className="w-3.5 h-3.5" />} mode="calendar" active={view} set={setView} title="Calendário mensal" />
+            <ViewBtn icon={<CalendarRange className="w-3.5 h-3.5" />} mode="year" active={view} set={setView} title="Calendário anual" />
             <ViewBtn icon={<LayoutGrid className="w-3.5 h-3.5" />} mode="grid" active={view} set={setView} title="Grade" />
             <ViewBtn icon={<AlignJustify className="w-3.5 h-3.5" />} mode="list" active={view} set={setView} title="Lista" />
           </div>
@@ -168,6 +170,7 @@ export default function Calendar() {
         <>
           {view === 'timeline' && <MonthTimeline races={filteredRaces} />}
           {view === 'calendar' && <MonthCalendarView races={filteredRaces} />}
+          {view === 'year' && <YearCalendarView races={filteredRaces} />}
           {view === 'grid' && <GridView races={filteredRaces} />}
           {view === 'list' && <ListView races={filteredRaces} />}
         </>
