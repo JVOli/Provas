@@ -7,7 +7,7 @@
  */
 import type { CheerioAPI } from 'cheerio'
 import { ScrapedRace } from './types'
-import { fetchHtml, parseBrazilianDate, inferRaceType, STATE_MAP, sleep } from './utils'
+import { fetchHtmlWithOptions, parseBrazilianDate, inferRaceType, STATE_MAP, sleep } from './utils'
 
 const BASE = 'https://brasilquecorre.com'
 
@@ -178,7 +178,7 @@ export async function scrapeBrasilQueCorre(
   for (const { slug, url } of pages) {
     try {
       log(`  Fetching ${url}`)
-      const $ = await fetchHtml(url)
+      const $ = await fetchHtmlWithOptions(url, { allowInsecureTLS: true })
       const races = parseEvents($, slug)
       let added = 0
 
