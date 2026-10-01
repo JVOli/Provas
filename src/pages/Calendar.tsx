@@ -9,6 +9,7 @@ import { RacePanel, PanelMode } from '@/components/RacePanel'
 import { RaceMonth } from '@/components/RaceMonth'
 import { RaceTimeline } from '@/components/RaceTimeline'
 import { SeasonStrip } from '@/components/SeasonStrip'
+import { StateFilter } from '@/components/StateFilter'
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { Select } from '@/components/ui/select'
@@ -41,6 +42,7 @@ export default function Calendar() {
   const [view, setView] = useState<View>('timeline')
   const [tier, setTier] = useState<TierFilter>('all')
   const [type, setType] = useState<'all' | RaceType>('all')
+  const [states, setStates] = useState<string[]>([])
   const [q, setQ] = useState('')
   const [includePast, setIncludePast] = useState(false)
   const [month, setMonth] = useState(todaySp().slice(0, 7))
@@ -74,10 +76,11 @@ export default function Calendar() {
     return races.filter((r) => {
       if (tier === 'mine' ? !SEASON_TIERS.includes(r.tier) : tier !== 'all' && r.tier !== tier) return false
       if (type !== 'all' && r.type !== type) return false
+      if (states.length > 0 && !states.includes(r.state)) return false
       if (term && !normalize(`${r.name} ${r.city}`).includes(term)) return false
       return true
     })
-  }, [races, tier, type, q])
+  }, [races, tier, type, states, q])
 
   const timelineRaces = useMemo(
     () => (includePast ? matching : matching.filter((r) => spDay(r.date) >= today)),
@@ -132,6 +135,7 @@ export default function Calendar() {
               <option key={t} value={t}>{TYPE_LABELS[t]}</option>
             ))}
           </Select>
+          <StateFilter value={states} onChange={setStates} className="w-full md:w-[150px]" />
           <Switch checked={includePast} onChange={setIncludePast} label="Incluir anteriores" />
           <span className="ml-auto hidden md:inline text-xs text-ink-500">
             {pluralize(timelineRaces.length, 'prova', 'provas')} · {seasonCount} na temporada
