@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Save, X } from 'lucide-react'
+import { Pencil, Save, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { racesApi } from '@/lib/api'
 import {
@@ -62,7 +62,7 @@ export function RacePanel({ race, mode, onModeChange, onClose, onSaved }: RacePa
       </header>
 
       {mode === 'view' && race ? (
-        <ViewMode race={race} onEdit={() => onModeChange('edit')} />
+        <ViewMode key={race.id} race={race} onEdit={() => onModeChange('edit')} onDeleted={onClose} />
       ) : (
         <EditMode
           key={race?.id ?? 'new'}
@@ -75,8 +75,25 @@ export function RacePanel({ race, mode, onModeChange, onClose, onSaved }: RacePa
   )
 }
 
-function ViewMode({ race, onEdit }: { race: Race; onEdit: () => void }) {
+function ViewMode({
+  race, onEdit, onDeleted,
+}: {
+  race: Race
+  onEdit: () => void
+  onDeleted: () => void
+}) {
   const qc = useQueryClient()
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const remove = useMutation({
+    mutationFn: () => racesApi.delete(race.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['races'] })
+      toast(`Prova excluída: ${race.name}`)
+      onDeleted()
+    },
+    onError: () => toast.error('Não foi possível excluir a prova'),
+  })
 
   const tier = useMutation({
     mutationFn: (t: RaceTier) => racesApi.setTier(race.id, t),
@@ -154,17 +171,37 @@ function ViewMode({ race, onEdit }: { race: Race; onEdit: () => void }) {
         )}
       </div>
 
-      <footer className="shrink-0 flex items-center gap-4 border-t border-ink-100 px-5 py-3">
-        <Button variant="secondary" onClick={onEdit}>
-          <Pencil className="w-4 h-4" />
-          Editar
-        </Button>
-        {race.website && (
-          <a href={race.website} target="_blank" rel="noreferrer" className="text-sm font-medium">
-            Site oficial →
-          </a>
-        )}
-      </footer>
+      {confirmDelete ? (
+        <footer className="shrink-0 border-t border-ink-100 bg-bordeaux-bg px-5 py-3 space-y-3">
+          <p className="text-sm text-ink-900">
+            Excluir <strong className="font-semibold">{race.name}</strong>? Isso remove a prova e o resultado, e não pode ser desfeito.
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="destructive" onClick={() => remove.mutate()} disabled={remove.isPending}>
+              <Trash2 className="w-4 h-4" />
+              {remove.isPending ? 'Excluindo' : 'Excluir'}
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>
+              Cancelar
+            </Button>
+          </div>
+        </footer>
+      ) : (
+        <footer className="shrink-0 flex items-center gap-4 border-t border-ink-100 px-5 py-3">
+          <Button variant="secondary" onClick={onEdit}>
+            <Pencil className="w-4 h-4" />
+            Editar
+          </Button>
+          {race.website && (
+            <a href={race.website} target="_blank" rel="noreferrer" className="text-sm font-medium">
+              Site oficial →
+            </a>
+          )}
+          <Button variant="ghost" size="icon" className="ml-auto text-bordeaux hover:bg-bordeaux-bg" onClick={() => setConfirmDelete(true)} aria-label="Excluir prova" title="Excluir prova">
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </footer>
+      )}
     </>
   )
 }
