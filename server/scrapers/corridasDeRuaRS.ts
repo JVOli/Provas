@@ -45,10 +45,22 @@ async function scrapeViaApi(log: (msg: string) => void): Promise<ScrapedRace[]> 
   const races: ScrapedRace[] = []
   let page = 1
 
+  // A API ordena por data crescente desde 2017 (milhares de eventos) e limita a 50 por página.
+  // Sem start_date as páginas se esgotam em provas antigas, então pedimos só de hoje em diante.
+  const startDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
+
   while (true) {
-    const url = `${BASE}/wp-json/tribe/events/v1/events?per_page=100&page=${page}&status=publish`
+    const url = `${BASE}/wp-json/tribe/events/v1/events?per_page=50&page=${page}&status=publish&start_date=${startDate}`
     log(`  [API] page ${page}: ${url}`)
-    const { data } = await axios.get<TribeResponse>(url, AXIOS_OPTS)
+    let data: TribeResponse
+    try {
+      data = (await axios.get<TribeResponse>(url, AXIOS_OPTS)).data
+    } catch (err: any) {
+      // Página 1 falhando aciona o fallback HTML; nas demais, mantém o que já foi coletado.
+      if (page === 1) throw err
+      log(`  ⚠ página ${page} falhou (${err.message}), mantendo ${races.length} já coletadas`)
+      break
+    }
 
     if (!data?.events?.length) break
 
@@ -82,6 +94,7 @@ async function scrapeViaApi(log: (msg: string) => void): Promise<ScrapedRace[]> 
       })
     }
 
+    log(`  [API] page ${page}/${data.total_pages}: ${data.events.length} eventos (total ${data.total})`)
     if (page >= data.total_pages) break
     page++
   }
