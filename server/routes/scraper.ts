@@ -16,7 +16,17 @@ interface ScraperStatus {
     skipped: number
     errors: string[]
   } | null
+  bySource: Record<string, SourceStatus>
   log: string[]
+}
+
+interface SourceStatus {
+  running: boolean
+  lastRun: Date | null
+  inserted: number
+  updated: number
+  skipped: number
+  error: string | null
 }
 
 const status: ScraperStatus = {
@@ -24,6 +34,7 @@ const status: ScraperStatus = {
   lastRun: null,
   lastSource: null,
   stats: null,
+  bySource: {},
   log: [],
 }
 
@@ -77,7 +88,7 @@ async function importRaces(races: ScrapedRace[], log: (m: string) => void) {
           sourceUrl: race.sourceUrl,
           source: race.source,
           elevation: race.elevation,
-          tier: RaceTier.SUGGESTION,
+          tier: RaceTier.NONE,
           status: RaceStatus.NOT_REGISTERED,
         },
       })
@@ -113,10 +124,12 @@ async function runScraper(keys: ScraperKey[], log: (m: string) => void) {
       totalUpdated += updated
       totalSkipped += skipped
 
+      status.bySource[key] = { running: false, lastRun: new Date(), inserted, updated, skipped, error: null }
       log(`📊 ${scraper.name}: +${inserted} new, ~${updated} updated, ${skipped} skipped`)
     } catch (err: any) {
       const msg = `Error in ${scraper.name}: ${err.message}`
       errors.push(msg)
+      status.bySource[key] = { running: false, lastRun: new Date(), inserted: 0, updated: 0, skipped: 0, error: err.message }
       log(`❌ ${msg}`)
     }
   }
@@ -138,6 +151,7 @@ scraperRouter.get('/status', (_req: Request, res: Response) => {
     lastRun: status.lastRun,
     lastSource: status.lastSource,
     stats: status.stats,
+    bySource: status.bySource,
     log: status.log.slice(-200),
   })
 })

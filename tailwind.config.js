@@ -1,11 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+        sans: ['Manrope', '-apple-system', 'Segoe UI', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -37,17 +36,33 @@ module.exports = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        tier: {
-          primary: '#ef4444',
-          secondary: '#f59e0b',
-          tertiary: '#3b82f6',
-          suggestion: '#6b7280',
+        navy: {
+          900: '#08131F', 800: '#0E2337', 700: '#1A3A57', 600: '#27526F',
+          500: '#3C6C8C', 400: '#5A88A6', 350: '#7FA3BC', 200: '#B9CDDB', 100: '#DCE7EF',
         },
+        signal: { DEFAULT: '#0F7EC4', 700: '#0C6AA6', 100: '#E4F1FA' },
+        paper: { DEFAULT: '#FCFBF9', 2: '#F5F3EF' },
+        mist: { DEFAULT: '#EAEFF3', 2: '#DCE3E9' },
+        hover: '#F2F6F9',
+        ink: { 900: '#14181C', 700: '#414A52', 500: '#78838C', 300: '#B3BCC4', 100: '#E6EAEE' },
+        forest: { DEFAULT: '#3E7A5E', bg: '#E7F0EB' },
+        bordeaux: { DEFAULT: '#C44E4E', bg: '#F8E9E9' },
+        mostarda: { DEFAULT: '#8A6F14', bg: '#F8F0DA' },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        lg: '8px',
+        md: '5px',
+        sm: '3px',
+      },
+      boxShadow: {
+        xs: '0 1px 2px rgba(14,35,55,.04)',
+        lg: '0 12px 32px rgba(14,35,55,.16)',
+      },
+      fontSize: {
+        '2xs': ['11px', '1.3'],
+      },
+      transitionTimingFunction: {
+        panel: 'cubic-bezier(.16,1,.3,1)',
       },
     },
   },

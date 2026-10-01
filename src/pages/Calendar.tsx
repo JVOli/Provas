@@ -1,297 +1,190 @@
-import { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { LayoutList, LayoutGrid, AlignJustify, CalendarDays, CalendarRange, Plus, History } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { racesApi } from '@/lib/api'
-import { Race, cn, TIER_BADGE, TIER_LABELS, STATUS_BADGE, STATUS_LABELS, TYPE_LABELS, formatDate, getDayOfWeek, TIER_COLORS } from '@/lib/utils'
-import { Filters, FilterState, defaultFilters } from '@/components/Filters'
-import { MonthTimeline } from '@/components/MonthTimeline'
-import { RaceCard } from '@/components/RaceCard'
-import { MonthCalendarView } from '@/components/MonthCalendarView'
-import { YearCalendarView } from '@/components/YearCalendarView'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { Search } from 'lucide-react'
+import { useRaces } from '@/lib/useRaces'
+import {
+  Race, RaceType, SEASON_TIERS, TYPE_LABELS, pluralize, spDay, todaySp,
+} from '@/lib/utils'
+import { RacePanel, PanelMode } from '@/components/RacePanel'
+import { RaceMonth } from '@/components/RaceMonth'
+import { RaceTimeline } from '@/components/RaceTimeline'
+import { SeasonStrip } from '@/components/SeasonStrip'
+import { Input } from '@/components/ui/input'
+import { Segmented } from '@/components/ui/segmented'
+import { Select } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 
-type ViewMode = 'timeline' | 'calendar' | 'year' | 'grid' | 'list'
+type View = 'timeline' | 'month'
+type TierFilter = 'all' | 'mine' | 'PRIMARY' | 'SECONDARY' | 'TERTIARY' | 'SUGGESTION'
 
-/** YYYY-MM-DD no fuso de São Paulo (comparável com outras datas no mesmo formato). */
-function calendarDaySaoPaulo(isoDate: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(isoDate))
-}
+const VIEW_OPTIONS: { value: View; label: string }[] = [
+  { value: 'timeline', label: 'Timeline' },
+  { value: 'month', label: 'Mês' },
+]
+
+const TIER_FILTER_OPTIONS: { value: TierFilter; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: 'mine', label: 'Temporada' },
+  { value: 'PRIMARY', label: 'A' },
+  { value: 'SECONDARY', label: 'B' },
+  { value: 'TERTIARY', label: 'C' },
+  { value: 'SUGGESTION', label: 'Sugestões' },
+]
+
+const normalize = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
 export default function Calendar() {
-  const [filters, setFilters] = useState<FilterState>(defaultFilters)
-  const [view, setView] = useState<ViewMode>('timeline')
-  const [includePastRaces, setIncludePastRaces] = useState(false)
-  const navigate = useNavigate()
+  const { data: races = [], isLoading, isError } = useRaces()
+  const [params, setParams] = useSearchParams()
 
-  const { data: facets } = useQuery({
-    queryKey: ['facets'],
-    queryFn: async () => (await racesApi.facets()).data,
-    staleTime: 5 * 60 * 1000,
-  })
+  const [view, setView] = useState<View>('timeline')
+  const [tier, setTier] = useState<TierFilter>('all')
+  const [type, setType] = useState<'all' | RaceType>('all')
+  const [q, setQ] = useState('')
+  const [includePast, setIncludePast] = useState(false)
+  const [month, setMonth] = useState(todaySp().slice(0, 7))
+  const [mode, setMode] = useState<PanelMode>('view')
 
-  const queryParams = useMemo(() => ({
-    state: filters.states.join(',') || undefined,
-    type: filters.types.join(',') || undefined,
-    tier: filters.tiers.join(',') || undefined,
-    status: filters.statuses.join(',') || undefined,
-    source: filters.sources.join(',') || undefined,
-    country: filters.countries.join(',') || undefined,
-    from: filters.from || undefined,
-    to: filters.to || undefined,
-    search: filters.search || undefined,
-    sort: 'date' as const,
-    limit: 200,
-  }), [filters])
+  const selectedId = params.get('p')
+  const isNew = params.get('nova') === '1'
+  const selected = races.find((r) => r.id === selectedId)
+  const panelOpen = isNew || !!selected
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['races', queryParams],
-    queryFn: async () => {
-      const first = (await racesApi.list({ ...queryParams, page: 1 })).data
-      const all = [...first.data]
+  // "Nova prova" vem da navegação (?nova=1); selecionar uma prova volta ao modo leitura.
+  useEffect(() => {
+    if (isNew) setMode('new')
+  }, [isNew])
 
-      if (first.pagination.pages > 1) {
-        for (let p = 2; p <= first.pagination.pages; p++) {
-          const next = (await racesApi.list({ ...queryParams, page: p })).data
-          all.push(...next.data)
-        }
-      }
+  const openRace = (race: Race) => {
+    setMode('view')
+    setParams({ p: race.id })
+    if (view === 'month') setMonth(spDay(race.date).slice(0, 7))
+  }
+  const closePanel = () => {
+    setParams({})
+    setMode('view')
+  }
 
-      return {
-        data: all,
-        pagination: {
-          ...first.pagination,
-          total: all.length,
-          page: 1,
-          pages: 1,
-        },
-      }
-    },
-  })
+  const today = todaySp()
 
-  const races = data?.data ?? []
-  const totalFetched = data?.pagination.total ?? 0
+  // Filtros comuns; "incluir anteriores" só vale para a timeline.
+  const matching = useMemo(() => {
+    const term = normalize(q.trim())
+    return races.filter((r) => {
+      if (tier === 'mine' ? !SEASON_TIERS.includes(r.tier) : tier !== 'all' && r.tier !== tier) return false
+      if (type !== 'all' && r.type !== type) return false
+      if (term && !normalize(`${r.name} ${r.city}`).includes(term)) return false
+      return true
+    })
+  }, [races, tier, type, q])
 
-  const todaySp = useMemo(
-    () =>
-      new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Sao_Paulo',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(new Date()),
-    []
+  const timelineRaces = useMemo(
+    () => (includePast ? matching : matching.filter((r) => spDay(r.date) >= today)),
+    [matching, includePast, today]
   )
+  const seasonCount = timelineRaces.filter((r) => SEASON_TIERS.includes(r.tier)).length
 
-  const filteredRaces = useMemo(() => {
-    if (includePastRaces) return races
-    return races.filter((r) => calendarDaySaoPaulo(r.date) >= todaySp)
-  }, [races, includePastRaces, todaySp])
-
-  const total = filteredRaces.length
+  const goToNextA = (race: Race) => {
+    openRace(race)
+    setMonth(spDay(race.date).slice(0, 7))
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-bold">Calendário de Provas</h1>
-          <p className="text-sm text-muted-foreground">
-            {isLoading
-              ? 'Carregando...'
-              : includePastRaces
-                ? `${total} prova${total !== 1 ? 's' : ''}`
-                : totalFetched > total
-                  ? `${total} próxima${total !== 1 ? 's' : ''} (${totalFetched} no total)`
-                  : `${total} prova${total !== 1 ? 's' : ''}`}
-          </p>
+    <div className="flex items-start">
+      <div className="min-w-0 flex-1 px-4 py-4 md:px-8 md:py-6 space-y-5">
+        <div className="flex items-baseline justify-between md:hidden">
+          <h1 className="text-xl font-light tracking-tight">Calendário</h1>
+          <span className="text-xs text-ink-500">
+            {pluralize(timelineRaces.length, 'prova', 'provas')} · {seasonCount} na temporada
+          </span>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          <Button
-            type="button"
-            variant={includePastRaces ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => setIncludePastRaces((v) => !v)}
-            className="gap-1.5 text-xs shrink-0"
-            title={
-              includePastRaces
-                ? 'Mostrar apenas provas a partir de hoje'
-                : 'Incluir provas já realizadas (datas passadas)'
-            }
-          >
-            <History className="w-3.5 h-3.5" />
-            {includePastRaces ? 'Só próximas' : 'Incluir anteriores'}
-          </Button>
-          {/* View toggle */}
-          <div className="flex items-center gap-1 bg-muted/50 rounded p-1 border border-border">
-            <ViewBtn icon={<LayoutList className="w-3.5 h-3.5" />} mode="timeline" active={view} set={setView} title="Timeline" />
-            <ViewBtn icon={<CalendarDays className="w-3.5 h-3.5" />} mode="calendar" active={view} set={setView} title="Calendário mensal" />
-            <ViewBtn icon={<CalendarRange className="w-3.5 h-3.5" />} mode="year" active={view} set={setView} title="Calendário anual" />
-            <ViewBtn icon={<LayoutGrid className="w-3.5 h-3.5" />} mode="grid" active={view} set={setView} title="Grade" />
-            <ViewBtn icon={<AlignJustify className="w-3.5 h-3.5" />} mode="list" active={view} set={setView} title="Lista" />
+
+        <SeasonStrip races={races} onOpen={goToNextA} />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Segmented label="Visão" value={view} options={VIEW_OPTIONS} onChange={setView} className="max-md:hidden" />
+          <div className="relative w-full md:w-60">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-300 pointer-events-none" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar prova ou cidade"
+              aria-label="Buscar prova ou cidade"
+              className="pl-8"
+            />
           </div>
-          <Button size="sm" onClick={() => navigate('/admin')} className="gap-1">
-            <Plus className="w-3.5 h-3.5" />
-            Nova prova
-          </Button>
+          <Segmented
+            label="Prioridade"
+            value={tier}
+            options={TIER_FILTER_OPTIONS}
+            onChange={setTier}
+            className="max-w-full overflow-x-auto no-scrollbar"
+          />
+          <Select
+            wrapperClassName="w-full md:w-[150px]"
+            value={type}
+            onChange={(e) => setType(e.target.value as 'all' | RaceType)}
+            aria-label="Tipo"
+          >
+            <option value="all">Todos os tipos</option>
+            {(['CORRIDA', 'TRAIL', 'ULTRA', 'TRIATHLON', 'DUATHLON', 'REVEZAMENTO'] as RaceType[]).map((t) => (
+              <option key={t} value={t}>{TYPE_LABELS[t]}</option>
+            ))}
+          </Select>
+          <Switch checked={includePast} onChange={setIncludePast} label="Incluir anteriores" />
+          <span className="ml-auto hidden md:inline text-xs text-ink-500">
+            {pluralize(timelineRaces.length, 'prova', 'provas')} · {seasonCount} na temporada
+          </span>
         </div>
+
+        {isLoading && (
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-14 rounded-lg border border-ink-100 bg-white animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {isError && (
+          <div className="py-12 text-center text-bordeaux">
+            Erro ao carregar provas. Verifique se o servidor está rodando.
+          </div>
+        )}
+
+        {!isLoading && !isError && (
+          <>
+            {/* No celular a visão Mês continua disponível pelo mesmo seletor. */}
+            <Segmented label="Visão" value={view} options={VIEW_OPTIONS} onChange={setView} className="md:hidden" />
+            {view === 'timeline' ? (
+              <RaceTimeline races={timelineRaces} selectedId={selectedId} onSelect={openRace} />
+            ) : (
+              <RaceMonth
+                races={matching}
+                month={month}
+                onMonthChange={setMonth}
+                selectedId={selectedId}
+                onSelect={openRace}
+              />
+            )}
+          </>
+        )}
       </div>
 
-      {/* Filters */}
-      <Filters
-        filters={filters}
-        onChange={(f) => { setFilters(f) }}
-        availableSources={facets?.sources}
-        availableCountries={facets?.countries}
-      />
-
-      {/* Content */}
-      {isLoading && (
-        <div className="space-y-2">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-20 bg-card border border-border rounded-r-lg animate-pulse" />
-          ))}
-        </div>
+      {panelOpen && (
+        <aside className="fixed inset-0 z-50 bg-white md:sticky md:top-14 md:z-auto md:inset-auto md:h-[calc(100vh-56px)] md:w-[380px] md:shrink-0 md:border-l md:border-ink-100">
+          <RacePanel
+            race={selected}
+            mode={isNew ? 'new' : mode}
+            onModeChange={setMode}
+            onClose={closePanel}
+            onSaved={(r) => {
+              setMode('view')
+              setParams({ p: r.id })
+            }}
+          />
+        </aside>
       )}
-
-      {isError && (
-        <div className="text-center py-12 text-destructive">
-          Erro ao carregar provas. Verifique se o servidor está rodando.
-        </div>
-      )}
-
-      {!isLoading && !isError && (
-        <>
-          {view === 'timeline' && <MonthTimeline races={filteredRaces} />}
-          {view === 'calendar' && <MonthCalendarView races={filteredRaces} />}
-          {view === 'year' && <YearCalendarView races={filteredRaces} />}
-          {view === 'grid' && <GridView races={filteredRaces} />}
-          {view === 'list' && <ListView races={filteredRaces} />}
-        </>
-      )}
-    </div>
-  )
-}
-
-function ViewBtn({
-  icon, mode, active, set, title,
-}: {
-  icon: React.ReactNode
-  mode: ViewMode
-  active: ViewMode
-  set: (m: ViewMode) => void
-  title: string
-}) {
-  return (
-    <button
-      onClick={() => set(mode)}
-      title={title}
-      className={cn(
-        'p-1.5 rounded transition-colors',
-        active === mode ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-      )}
-    >
-      {icon}
-    </button>
-  )
-}
-
-function GridView({ races }: { races: Race[] }) {
-  if (races.length === 0) {
-    return (
-      <div className="text-center py-16 text-muted-foreground">
-        <p>Nenhuma prova encontrada</p>
-      </div>
-    )
-  }
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {races.map((race) => (
-        <RaceCard key={race.id} race={race} />
-      ))}
-    </div>
-  )
-}
-
-function ListView({ races }: { races: Race[] }) {
-  const navigate = useNavigate()
-
-  if (races.length === 0) {
-    return (
-      <div className="text-center py-16 text-muted-foreground">
-        <p>Nenhuma prova encontrada</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-muted/40 text-muted-foreground text-xs">
-            <th className="text-left px-3 py-2 font-medium">Data</th>
-            <th className="text-left px-3 py-2 font-medium">Nome</th>
-            <th className="text-left px-3 py-2 font-medium hidden sm:table-cell">Local</th>
-            <th className="text-left px-3 py-2 font-medium hidden md:table-cell">Distância</th>
-            <th className="text-left px-3 py-2 font-medium hidden lg:table-cell">Tipo</th>
-            <th className="text-left px-3 py-2 font-medium">Prioridade</th>
-            <th className="text-left px-3 py-2 font-medium hidden md:table-cell">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {races.map((race, i) => (
-            <tr
-              key={race.id}
-              onClick={() => navigate(`/race/${race.id}`)}
-              className={cn(
-                'border-t border-border cursor-pointer hover:bg-accent/50 transition-colors',
-                i % 2 === 0 && 'bg-muted/10'
-              )}
-            >
-              <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                <div className="font-medium text-foreground">
-                  {formatDate(race.date, { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })}
-                </div>
-                <div className="text-xs capitalize">{getDayOfWeek(race.date)}</div>
-              </td>
-              <td className={cn(
-                'px-3 py-2 font-medium max-w-xs truncate',
-                race.tier === 'PRIMARY' && 'text-red-400',
-                race.tier === 'SECONDARY' && 'text-amber-300',
-              )}>
-                {race.name}
-              </td>
-              <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell whitespace-nowrap">
-                {race.city} – {race.state}
-              </td>
-              <td className="px-3 py-2 text-muted-foreground hidden md:table-cell">
-                {race.myDistance || race.distances}
-              </td>
-              <td className="px-3 py-2 hidden lg:table-cell">
-                <Badge variant="outline" className="text-[10px]">
-                  {TYPE_LABELS[race.type]}
-                </Badge>
-              </td>
-              <td className="px-3 py-2">
-                <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium', TIER_BADGE[race.tier])}>
-                  {TIER_LABELS[race.tier]}
-                </span>
-              </td>
-              <td className="px-3 py-2 hidden md:table-cell">
-                <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium', STATUS_BADGE[race.status])}>
-                  {STATUS_LABELS[race.status]}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   )
 }

@@ -19,9 +19,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <App />
       <Toaster
-        richColors
-        position="bottom-right"
-        toastOptions={{ className: 'font-sans' }}
+        position="bottom-center"
+        duration={2400}
+        toastOptions={{
+          unstyled: true,
+          classNames: {
+            toast:
+              'font-sans flex items-center gap-2 rounded-lg bg-navy-800 px-4 py-3 text-sm text-white shadow-lg w-[356px] max-w-[calc(100vw-32px)]',
+            error: '!bg-bordeaux',
+          },
+        }}
       />
     </QueryClientProvider>
   </React.StrictMode>

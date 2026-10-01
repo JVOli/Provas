@@ -67,14 +67,24 @@ export const racesApi = {
     api.patch<Race>(`/races/${id}/status`, { status }),
 }
 
+export interface SourceStatus {
+  running: boolean
+  lastRun: string | null
+  inserted: number
+  updated: number
+  skipped: number
+  error: string | null
+}
+
 export const scraperApi = {
-  sources: () => api.get<{ key: string; name: string }[]>('/scraper/sources'),
+  sources: () => api.get<{ key: string; name: string; host?: string }[]>('/scraper/sources'),
   status: () =>
     api.get<{
       running: boolean
       lastRun: string | null
       lastSource: string | null
       stats: { inserted: number; updated: number; skipped: number; errors: string[] } | null
+      bySource: Record<string, SourceStatus>
       log: string[]
     }>('/scraper/status'),
   runAll: () => api.post('/scraper/run'),

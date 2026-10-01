@@ -38,6 +38,12 @@ model Race {
 
   elevation   String?
 
+  resultTime         String?
+  resultOverall      String?
+  resultCategory     String?
+  resultCategoryName String?
+  resultUrl          String?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

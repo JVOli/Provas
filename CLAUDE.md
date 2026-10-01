@@ -33,15 +33,16 @@ No linting or test suite is configured.
 
 Single npm project with a React frontend (`src/`) and an Express backend (`server/`) sharing the same `package.json`. The server compiles to CommonJS (`tsconfig.server.json` → `server-dist/`).
 
-**Frontend** (`src/`) — React 18 + Vite + TanStack Query + Tailwind CSS
-- `App.tsx`: router with three routes — `/` (Calendar), `/race/:id` (RaceDetail), `/admin` (Admin)
-- `Calendar.tsx`: four display modes (timeline, calendar, grid, list); filters by state/type/tier/status/date range; fetches all pages (max 200/page); toggles past races relative to São Paulo timezone
-- `Admin.tsx`: three tabs — **Create** (manual race form), **Scraper** (trigger scrapers + live log), **Stats** (pie charts by tier/type/status/state/month)
+**Frontend** (`src/`) — React 18 + Vite + TanStack Query + Tailwind CSS, tema claro do design system Píer (Manrope, tokens `navy/signal/paper/ink` em `tailwind.config.js`)
+- `App.tsx`: top bar (desktop) + barra inferior (celular); rotas `/` (Calendar), `/resultados` (Results), `/fontes` (Sources). `/race/:id` redireciona para `/?p=:id` e `/admin` para `/fontes`
+- `pages/Calendar.tsx`: faixa da temporada (`SeasonStrip`, contagem regressiva até a próxima prova A), duas visões (`RaceTimeline`, `RaceMonth`), filtros no cliente (busca, prioridade, tipo, incluir anteriores). Detalhe, edição e cadastro abrem no painel lateral `RacePanel` (`?p=<id>` seleciona, `?nova=1` abre o cadastro). Dados vêm de `useRaces()` (`lib/useRaces.ts`), que busca todas as páginas uma vez
+- `pages/Results.tsx`: tabela de desempenho (tempo, colocação geral e na categoria, link oficial) e KPIs por ano, derivados de `resultTime/resultOverall/resultCategory/resultCategoryName/resultUrl` das provas COMPLETED/DNF
+- `pages/Sources.tsx`: execução dos scrapers com contadores por fonte (`bySource` em `GET /api/scraper/status`)
 - Vite proxies `/api/*` to `http://localhost:3001` in dev
 
 **Backend** (`server/`) — Express 4 + TypeScript
 - `routes/races.ts`: full CRUD + `PATCH /:id/tier` and `PATCH /:id/status`
-- `routes/scraper.ts`: `GET /sources`, `GET /status`, `POST /run`, `POST /run/:source`
+- `routes/scraper.ts`: `GET /sources`, `GET /status` (inclui `bySource`), `POST /run`, `POST /run/:source`
 - `routes/stats.ts`: aggregated counts by type/state/tier/status/month
 
 **Scrapers** (`server/scrapers/`)
@@ -59,7 +60,7 @@ Single `Race` model with enums:
 - `RaceTier`: NONE, PRIMARY, SECONDARY, TERTIARY, SUGGESTION
 - `RaceStatus`: NOT_REGISTERED, REGISTERED, COMPLETED, DNS, DNF, CANCELLED
 
-Scrapers **never overwrite** `tier`, `notes`, `status`, or `myDistance` — these are user-managed fields. New races are inserted with `tier: SUGGESTION` and `status: NOT_REGISTERED`.
+Scrapers **never overwrite** `tier`, `notes`, `status`, or `myDistance` — these are user-managed fields. New races are inserted with `tier: NONE` and `status: NOT_REGISTERED`. Result fields (`resultTime`, `resultOverall`, `resultCategory`, `resultCategoryName`, `resultUrl`) are also user-managed and never touched by scrapers.
 
 **Deployment** — Railway (see `railway.json`)
 Start command: `npx prisma db push && npm run start`. Build uses Nixpacks. Required env var: `DATABASE_URL`.
@@ -73,7 +74,7 @@ POST /api/scraper/run[/:source]
     → importRaces(races, log)
         → load DB races (past 30 days)
         → isDuplicate() per race   — skip if duplicate, update sourceUrl if missing
-        → prisma.race.create()     — new races inserted as tier=SUGGESTION
+        → prisma.race.create()     — new races inserted as tier=NONE
   → status object updated (inserted / updated / skipped counts)
 
 GET /api/scraper/status            — frontend polls every 2s while running

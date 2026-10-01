@@ -1,75 +1,106 @@
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
-import { CalendarDays, Settings, Sun, Moon } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { CalendarDays, Plus, RefreshCw, Trophy } from 'lucide-react'
 import Calendar from './pages/Calendar'
-import RaceDetail from './pages/RaceDetail'
-import Admin from './pages/Admin'
+import Results from './pages/Results'
+import Sources from './pages/Sources'
+import { Button } from './components/ui/button'
+import { cn } from './lib/utils'
+
+function RedirectRace() {
+  const { id } = useParams()
+  return <Navigate to={`/?p=${id}`} replace />
+}
+
+const NAV = [
+  { to: '/', label: 'Calendário', icon: CalendarDays, end: true },
+  { to: '/resultados', label: 'Resultados', icon: Trophy },
+  { to: '/fontes', label: 'Fontes', icon: RefreshCw },
+]
+
+function TopBar() {
+  const navigate = useNavigate()
+  return (
+    <header className="sticky top-0 z-40 h-14 border-b border-ink-100 bg-white">
+      <div className="flex h-full items-center justify-between gap-4 px-4 md:px-8">
+        <div className="flex items-center gap-6 min-w-0">
+          <span className="text-base font-semibold tracking-tight truncate">Meu calendário de provas</span>
+          <nav className="hidden md:flex items-center gap-1">
+            {NAV.map((n) => (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                end={n.end}
+                className={({ isActive }) =>
+                  cn(
+                    'rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors duration-[120ms]',
+                    isActive
+                      ? 'bg-signal-100 !text-signal-700'
+                      : '!text-ink-700 hover:bg-hover'
+                  )
+                }
+              >
+                {n.label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+        <Button className="max-md:hidden" onClick={() => navigate('/?nova=1')}>
+          <Plus className="w-4 h-4" />
+          Nova prova
+        </Button>
+      </div>
+    </header>
+  )
+}
+
+function BottomNav() {
+  const navigate = useNavigate()
+  const base =
+    'flex min-h-[44px] flex-1 flex-col items-center justify-center gap-1 text-2xs font-medium transition-colors duration-[120ms]'
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex h-[76px] items-start border-t border-ink-100 bg-white px-2 pt-2 pb-4 md:hidden">
+      {NAV.slice(0, 2).map((n) => (
+        <NavLink
+          key={n.to}
+          to={n.to}
+          end={n.end}
+          className={({ isActive }) => cn(base, isActive ? '!text-signal' : '!text-ink-500')}
+        >
+          <n.icon className="h-5 w-5" />
+          {n.label}
+        </NavLink>
+      ))}
+      <button type="button" onClick={() => navigate('/?nova=1')} className={cn(base, 'text-ink-500')}>
+        <Plus className="h-5 w-5" />
+        Nova
+      </button>
+      <NavLink
+        to="/fontes"
+        className={({ isActive }) => cn(base, isActive ? '!text-signal' : '!text-ink-500')}
+      >
+        <RefreshCw className="h-5 w-5" />
+        Fontes
+      </NavLink>
+    </nav>
+  )
+}
 
 export default function App() {
-  const [dark, setDark] = useState(true)
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-    document.documentElement.classList.toggle('light', !dark)
-  }, [dark])
-
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-background text-foreground">
-        {/* Top Nav */}
-        <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-sm">
-          <div className="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-6">
-              <span className="font-bold text-sm tracking-tight flex items-center gap-2">
-                <CalendarDays className="w-4 h-4 text-blue-400" />
-                Meu Calendário de Provas
-              </span>
-              <nav className="flex items-center gap-1">
-                <NavLink
-                  to="/"
-                  end
-                  className={({ isActive }) =>
-                    `px-3 py-1.5 rounded text-sm transition-colors ${
-                      isActive
-                        ? 'bg-accent text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`
-                  }
-                >
-                  Calendário
-                </NavLink>
-                <NavLink
-                  to="/admin"
-                  className={({ isActive }) =>
-                    `px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1 ${
-                      isActive
-                        ? 'bg-accent text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`
-                  }
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  Admin
-                </NavLink>
-              </nav>
-            </div>
-            <button
-              onClick={() => setDark(!dark)}
-              className="p-2 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-              title="Toggle theme"
-            >
-              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-          </div>
-        </header>
-
-        <main className="mx-auto max-w-7xl px-4 py-6">
+        <TopBar />
+        <main className="pb-[76px] md:pb-0">
           <Routes>
             <Route path="/" element={<Calendar />} />
-            <Route path="/race/:id" element={<RaceDetail />} />
-            <Route path="/admin" element={<Admin />} />
+            <Route path="/resultados" element={<Results />} />
+            <Route path="/fontes" element={<Sources />} />
+            <Route path="/race/:id" element={<RedirectRace />} />
+            <Route path="/admin" element={<Navigate to="/fontes" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+        <BottomNav />
       </div>
     </BrowserRouter>
   )
