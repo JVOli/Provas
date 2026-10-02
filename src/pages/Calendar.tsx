@@ -36,7 +36,7 @@ const STATE_OPTIONS: FilterOption[] = [
 ].map((s) => ({ value: s, label: s }))
 
 const normalize = (s: string) =>
-  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ')
 
 export default function Calendar() {
   const { data: races = [], isLoading, isError } = useRaces()
@@ -90,7 +90,8 @@ export default function Calendar() {
       if (types.length > 0 && !types.includes(r.type)) return false
       if (states.length > 0 && !states.includes(r.state)) return false
       if (sources.length > 0 && !sources.includes(r.source || 'manual')) return false
-      if (term && !normalize(`${r.name} ${r.city}`).includes(term)) return false
+      // Nome e cidade são comparados separadamente para o termo não casar pela emenda entre os dois.
+      if (term && !normalize(r.name).includes(term) && !normalize(r.city).includes(term)) return false
       return true
     })
   }, [races, tiers, types, states, sources, q])
